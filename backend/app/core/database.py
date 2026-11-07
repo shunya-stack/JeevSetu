@@ -5,10 +5,19 @@ from app.core.config import settings
 class Base(DeclarativeBase):
     pass
 
+connect_args = (
+    {"check_same_thread": False}
+    if "sqlite" in settings.DATABASE_URL
+    else {
+        "statement_cache_size": 0,
+        "prepared_statement_name_func": lambda: "",
+    }
+)
+
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
+    connect_args=connect_args
 )
 
 AsyncSessionLocal = async_sessionmaker(
