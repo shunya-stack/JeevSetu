@@ -3,7 +3,7 @@ import uuid
 import random
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, update
 from app.core.config import settings
@@ -16,6 +16,7 @@ from app.schemas.case import (
 )
 from app.services.triage.engine import evaluate_triage
 from app.services.gnani.factory import get_speech_provider, get_reasoning_provider, get_voice_provider
+from app.services.storage import get_audio_storage
 
 router = APIRouter(prefix="/api")
 
@@ -47,6 +48,11 @@ async def integration_status():
             "engine": "sqlite" if "sqlite" in settings.DATABASE_URL else "postgresql",
             "status": "connected"
         },
+        "audio_storage": {
+            "mode": settings.AUDIO_STORAGE_MODE,
+            "status": "configured" if settings.AUDIO_STORAGE_MODE == "local" or (settings.SUPABASE_URL and (settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_PUBLISHABLE_KEY)) else "missing_credentials",
+            "credential_type": "service_role" if settings.SUPABASE_SERVICE_ROLE_KEY else ("publishable" if settings.SUPABASE_PUBLISHABLE_KEY else "none")
+        },
         "safety_engine": {
             "version": settings.TRIAGE_RULESET_VERSION,
             "status": "active_deterministic"
@@ -63,7 +69,7 @@ async def transcribe_audio(
     if not (content_type.startswith("audio/") or file.filename.endswith((".wav", ".mp3", ".webm", ".ogg", ".m4a"))):
         raise HTTPException(status_code=400, detail="Invalid audio file format.")
 
-    # Read bytes and persist locally
+    # Read bytes and persist through the configured storage adapter.
     audio_bytes = await file.read()
     if len(audio_bytes) > 25 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Audio file exceeds 25MB limit.")
@@ -71,10 +77,10 @@ async def transcribe_audio(
     os.makedirs(settings.AUDIO_STORAGE_PATH, exist_ok=True)
     ext = os.path.splitext(file.filename)[1] or ".webm"
     storage_name = f"rec_{uuid.uuid4().hex[:12]}{ext}"
-    storage_path = os.path.join(settings.AUDIO_STORAGE_PATH, storage_name)
-
-    with open(storage_path, "wb") as f:
-        f.write(audio_bytes)
+    try:
+        await get_audio_storage().upload(audio_bytes, storage_name, content_type)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Audio storage is unavailable.") from exc
 
     # Transcribe via speech provider
     provider = get_speech_provider()
@@ -83,7 +89,8 @@ async def transcribe_audio(
         result["audio_object_key"] = storage_name
         return result
     except Exception as e:
-        # Keep intake available when the optional live provider is unavailable.
+        if settings.AI_PROVIDER_MODE == "live":
+            raise HTTPException(status_code=502, detail="Live speech transcription failed.") from e
         from app.services.gnani.demo_providers import DemoSpeechProvider
         fallback = DemoSpeechProvider()
         res = await fallback.transcribe(audio_bytes, file.filename, language_hint=language)
@@ -353,9 +360,10 @@ async def get_analytics_summary(db: AsyncSession = Depends(get_db)):
 
 @router.get("/audio/{filename}")
 async def get_audio_file(filename: str):
-    # Sanitize filename
-    safe_name = os.path.basename(filename)
-    path = os.path.join(settings.AUDIO_STORAGE_PATH, safe_name)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Audio file not found.")
-    return FileResponse(path)
+    try:
+        content, content_type = await get_audio_storage().download(filename)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Audio file not found.") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Audio storage is unavailable.") from exc
+    return Response(content=content, media_type=content_type)

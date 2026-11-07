@@ -104,6 +104,12 @@ The API client appends `/api` to `VITE_API_BASE_URL`. When the variable is absen
 
 The backend must be deployed separately and its production origin must be listed in the backend `CORS_ORIGINS` value alongside the Vercel frontend origin.
 
+## Supabase Database and Audio Storage
+
+Set `DATABASE_URL` to Supabase's PostgreSQL connection string using the `postgresql+asyncpg` scheme. Set `AUDIO_STORAGE_MODE=supabase` to store uploaded audio in a Supabase Storage bucket. Prefer the server-only `SUPABASE_SERVICE_ROLE_KEY` for backend storage operations; a publishable key only works when matching Storage RLS policies allow the operation.
+
+Local development continues to use `AUDIO_STORAGE_MODE=local` and the ignored `uploads/` directory.
+
 ## Production Deployment Shape
 
 A production deployment should use:

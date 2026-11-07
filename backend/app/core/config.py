@@ -41,7 +41,12 @@ class Settings(BaseModel):
     AI_PROVIDER_MODE: str = os.getenv("AI_PROVIDER_MODE", "demo" if not os.getenv("GNANI_API_KEY") else "live")
     
     # File Storage
+    AUDIO_STORAGE_MODE: str = os.getenv("AUDIO_STORAGE_MODE", "local")
     AUDIO_STORAGE_PATH: str = os.getenv("AUDIO_STORAGE_PATH", "./uploads")
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_PUBLISHABLE_KEY: str = os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    SUPABASE_BUCKET: str = os.getenv("SUPABASE_BUCKET", "jeevsetu-audio")
     TRIAGE_RULESET_VERSION: str = "demo-v1.0"
 
 settings = Settings()
