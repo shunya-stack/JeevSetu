@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+:root {
+  --background: #F7F7F0;
+  --surface: #FFFFFF;
+  --surface-muted: #EEF2E9;
+  --foreground: #17251D;
+  --muted-foreground: #647168;
+  --primary: #174B35;
+  --primary-hover: #103D2A;
+  --primary-soft: #E2EEE5;
+  --accent: #D89A32;
+  --warning: #A85C12;
+  --warning-soft: #FFF2D9;
+  --danger: #B83A35;
+  --danger-soft: #FCE9E7;
+  --border: #E2E7DF;
+  --focus: #2D7D57;
+  --radius-card: 18px;
+}
+
+body {
+  font-family: 'DM Sans', 'Noto Sans Oriya', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Accessible focus ring */
+*:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F7F7F0;
+}
+::-webkit-scrollbar-thumb {
+  background: #C4CEC7;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A2B1A6;
+}
+
+/* Waveform pulse animation */
+@keyframes micPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(184, 58, 53, 0.4); }
+  70% { transform: scale(1.04); box-shadow: 0 0 0 20px rgba(184, 58, 53, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(184, 58, 53, 0); }
+}
+
+.mic-recording {
+  animation: micPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}

@@ -1,0 +1,48 @@
+import os
+from pathlib import Path
+from pydantic import BaseModel
+
+def load_local_env() -> None:
+    env_path = Path(__file__).resolve().parents[3] / ".env"
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if key and key not in os.environ:
+            os.environ[key] = value.strip().strip('"').strip("'")
+
+load_local_env()
+
+class Settings(BaseModel):
+    APP_ENV: str = os.getenv("APP_ENV", "development")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./jeevsetu.db")
+    CORS_ORIGINS: list[str] = [
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://localhost:8000"
+        ).split(",")
+        if origin.strip()
+    ]
+    
+    # Gnani Configuration
+    GNANI_API_KEY: str = os.getenv("GNANI_API_KEY", "")
+    GNANI_API_BASE_URL: str = os.getenv("GNANI_API_BASE_URL", "https://api.vachana.ai")
+    GNANI_PRISMA_MODEL: str = os.getenv("GNANI_PRISMA_MODEL", "prisma-v3.0")
+    GNANI_EVON_MODEL: str = os.getenv("GNANI_EVON_MODEL", "gnani-evon-v3.3-30B-A3B")
+    GNANI_TIMBRE_MODEL: str = os.getenv("GNANI_TIMBRE_MODEL", "timbre-v3.0")
+    
+    # Provider Mode: "live" or "demo"
+    AI_PROVIDER_MODE: str = os.getenv("AI_PROVIDER_MODE", "demo" if not os.getenv("GNANI_API_KEY") else "live")
+    
+    # File Storage
+    AUDIO_STORAGE_PATH: str = os.getenv("AUDIO_STORAGE_PATH", "./uploads")
+    TRIAGE_RULESET_VERSION: str = "demo-v1.0"
+
+settings = Settings()
+
