@@ -36,6 +36,14 @@ class Settings(BaseModel):
     GNANI_PRISMA_MODEL: str = os.getenv("GNANI_PRISMA_MODEL", "prisma-v3.0")
     GNANI_EVON_MODEL: str = os.getenv("GNANI_EVON_MODEL", "gnani-evon-v3.3-30B-A3B")
     GNANI_TIMBRE_MODEL: str = os.getenv("GNANI_TIMBRE_MODEL", "timbre-v3.0")
+
+    # Reasoning LLM (Google Gemini) — used for symptom extraction when configured
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+
+    # Reasoning LLM fallback (DeepSeek) — secondary slot for symptom extraction
+    DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
+    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
     
     # Provider Mode: "live" or "demo"
     AI_PROVIDER_MODE: str = os.getenv("AI_PROVIDER_MODE", "demo" if not os.getenv("GNANI_API_KEY") else "live")
