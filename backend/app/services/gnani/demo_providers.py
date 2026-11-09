@@ -17,6 +17,11 @@ class DemoSpeechProvider(SpeechProvider):
             "भैंस के पिछले पैर में चोट लगी है, खुर के पास सूजन है और लंगड़ा कर चल रही है। दूध देना भी आधा कर दिया है।",
             "बकरी को कल रात से बहुत तेज बुखार है, पूरा बदन कांप रहा है और आंख-नाक से पानी गिर रहा है।"
         ],
+        "english": [
+            "My cow has not eaten anything for two days. It lies down all the time and the left side of its stomach is swollen. Milk production has gone down.",
+            "Our buffalo injured its back leg; there is swelling near the hoof and it limps while walking. Milk yield has halved.",
+            "The goat has had a very high fever since last night, its whole body is shivering and there is watering from its eyes and nose."
+        ],
         "mixed": [
             "ଗାଈ completely feed ନେଉନି from yesterday. Left side stomach ଫୁଲିଛି, heavily panting କରୁଛି। Please help urgently.",
             "Cow not eating food since 2 days, gait unsteadiness ଅଛି ଆଉ body temperature ବହୁତ high ଲାଗୁଛି।"
@@ -24,13 +29,14 @@ class DemoSpeechProvider(SpeechProvider):
     }
 
     async def transcribe(self, audio_bytes: bytes, filename: str, language_hint: str = "odia") -> dict:
-        lang = language_hint if language_hint in self.SAMPLE_TRANSCRIPTS else "odia"
-        samples = self.SAMPLE_TRANSCRIPTS.get(lang, self.SAMPLE_TRANSCRIPTS["odia"])
+        lang = language_hint if language_hint in ("odia", "hindi", "english") else "mixed"
+        samples = self.SAMPLE_TRANSCRIPTS.get(lang) or self.SAMPLE_TRANSCRIPTS["mixed"]
         transcript = random.choice(samples)
         
         return {
             "transcript": transcript,
             "detected_language": lang,
+            "requested_app_language": language_hint,
             "confidence": 0.94,
             "provider": "demo_speech",
             "is_demo": True,

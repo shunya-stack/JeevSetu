@@ -50,6 +50,46 @@ class CaseCreateRequest(BaseModel):
     input_mode: str = "voice"
     processing_source: str = "demo"
     is_demo_record: bool = False
+    # Voice-first review data
+    original_audio_keys: list[str] | None = None
+    original_transcripts: list[str] | None = None
+    english_operator_transcript: str | None = None
+    tts_audio_object_key: str | None = None
+    farmer_confirmed: bool = False
+    confirmation_status: str = "pending"
+    record_more_count: int = 0
+
+
+class TTSGenerateRequest(BaseModel):
+    text: str
+    language: str = "odia"
+
+
+class TTSGenerateResponse(BaseModel):
+    audio_object_key: str
+    audio_url: str
+    text: str
+    language: str
+
+
+class AppendRecordingResponse(BaseModel):
+    case_id: str
+    new_transcript: str
+    merged_symptoms: dict | None = None
+    english_operator_transcript: str | None = None
+    tts_audio_object_key: str | None = None
+    tts_audio_url: str | None = None
+    record_more_count: int
+
+
+class ConfirmCaseRequest(BaseModel):
+    confirmed: bool
+
+
+class ConfirmCaseResponse(BaseModel):
+    case_id: str
+    confirmation_status: str
+    farmer_confirmed: bool
 
 class CaseStatusUpdateRequest(BaseModel):
     status: str
@@ -98,6 +138,14 @@ class CaseResponse(BaseModel):
     input_mode: str
     processing_source: str
     is_demo_record: bool
+    # Voice-first review data
+    original_audio_keys: list[str] | None = None
+    original_transcripts: list[str] | None = None
+    english_operator_transcript: str | None = None
+    tts_audio_object_key: str | None = None
+    farmer_confirmed: bool = False
+    confirmation_status: str = "pending"
+    record_more_count: int = 0
     created_at: datetime
     updated_at: datetime
     status_history: list[CaseStatusHistoryResponse] = []

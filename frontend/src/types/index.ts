@@ -105,6 +105,7 @@ export interface AnalyticsSummary {
 }
 
 export interface FarmerReportDraft {
+  _draft_version?: number;
   animal_type: AnimalType;
   animal_identifier: string;
   animal_age_group: string;
@@ -113,6 +114,32 @@ export interface FarmerReportDraft {
   transcript: string;
   audio_object_key: string;
   audio_blob_url?: string;
+  /** Original-language transcript from STT (before any translation/enforcement). */
+  original_transcript?: string;
+  /** Language actually detected in the spoken audio. */
+  transcript_language?: string;
+  /** Whether the transcript was translated/enforced into the selected language. */
+  language_translated?: boolean;
+  /** App language the transcript was enforced into (re-checked when the farmer switches language). */
+  enforced_language?: string;
+  /** English translation of the transcript, generated for the operator. */
+  english_operator_transcript?: string;
+  /** All original recording keys (supports re-record / Record More). */
+  original_audio_keys?: string[];
+  /** All original-language transcripts (parallel to original_audio_keys). */
+  original_transcripts?: string[];
+  /** Localized summary in the farmer's selected language. */
+  localized_summary?: string;
+  /** Localized recommended actions in the farmer's selected language. */
+  localized_recommendations?: string;
+  /** Whether the farmer explicitly confirmed the understood report. */
+  farmer_confirmed?: boolean;
+  /** Confirmation status: pending | confirmed | rejected. */
+  confirmation_status?: 'pending' | 'confirmed' | 'rejected';
+  /** How many times the farmer chose "Record More" / re-recorded. */
+  record_more_count?: number;
+  /** Whether the case has been submitted (prevents duplicate submission). */
+  case_submitted?: boolean;
   audio_consent: boolean;
   symptom_extraction?: SymptomExtraction;
   urgency_level: UrgencyLevel;

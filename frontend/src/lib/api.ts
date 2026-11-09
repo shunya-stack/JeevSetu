@@ -1,6 +1,7 @@
 import { CaseRecord, VeterinaryServiceRecord, AnalyticsSummary, UrgencyLevel } from '../types';
 
 const configuredApiOrigin = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '');
+export const API_ORIGIN = configuredApiOrigin || window.location.origin;
 const API_BASE = configuredApiOrigin ? `${configuredApiOrigin}/api` : '/api';
 
 export async function checkBackendHealth() {
@@ -23,7 +24,7 @@ export async function getIntegrationStatus() {
 
 export async function uploadAndTranscribeAudio(audioBlob: Blob, language: string = 'odia') {
   const formData = new FormData();
-  formData.append('file', audioBlob, 'voice_report.webm');
+  formData.append('file', audioBlob, 'voice_report.wav');
   formData.append('language', language);
 
   const res = await fetch(`${API_BASE}/audio/transcribe`, {
@@ -32,7 +33,105 @@ export async function uploadAndTranscribeAudio(audioBlob: Blob, language: string
   });
 
   if (!res.ok) {
-    throw new Error(`Speech transcription failed with status ${res.status}`);
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === 'string' && body.detail) detail = body.detail;
+    } catch {
+      // keep statusText
+    }
+    throw new Error(`Speech transcription failed with status ${res.status}${detail ? `: ${detail}` : ''}`);
+  }
+  return await res.json();
+}
+
+export async function enforceLanguageAPI(transcript: string, language: string) {
+  const res = await fetch(`${API_BASE}/cases/enforce-language`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transcript, language })
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === 'string' && body.detail) detail = body.detail;
+    } catch {
+      // keep statusText
+    }
+    throw new Error(`Language check failed: ${detail}`);
+  }
+  return await res.json();
+}
+
+export async function translateToEnglishAPI(transcript: string, sourceLanguage: string) {
+  const res = await fetch(`${API_BASE}/cases/translate-to-english`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      transcript,
+      source_language: sourceLanguage
+    })
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === 'string' && body.detail) detail = body.detail;
+    } catch {
+      // keep statusText
+    }
+    throw new Error(`Translation failed: ${detail}`);
+  }
+  return await res.json();
+}
+
+export async function extractSymptomsFromEnglishAPI(transcript: string, animalType: string, language: string, inputMode: string) {
+  const res = await fetch(`${API_BASE}/cases/extract-symptoms`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      transcript,
+      animal_type: animalType,
+      language,
+      input_mode: inputMode
+    })
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === 'string' && body.detail) detail = body.detail;
+    } catch {
+      // keep statusText
+    }
+    throw new Error(`Symptom extraction failed: ${detail}`);
+  }
+  return await res.json();
+}
+
+export async function confirmCaseAPI(caseId: string, confirmed: boolean) {
+  const res = await fetch(`${API_BASE}/cases/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      case_id: caseId,
+      confirmed
+    })
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === 'string' && body.detail) detail = body.detail;
+    } catch {
+      // keep statusText
+    }
+    throw new Error(`Confirmation failed: ${detail}`);
   }
   return await res.json();
 }
@@ -50,7 +149,14 @@ export async function extractSymptomsAPI(transcript: string, animalType: string,
   });
 
   if (!res.ok) {
-    throw new Error(`Symptom extraction failed: ${res.statusText}`);
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === 'string' && body.detail) detail = body.detail;
+    } catch {
+      // keep statusText
+    }
+    throw new Error(`Symptom extraction failed: ${detail}`);
   }
   return await res.json();
 }
@@ -74,6 +180,66 @@ export async function evaluateTriageAPI(
 
   if (!res.ok) {
     throw new Error(`Triage evaluation failed: ${res.statusText}`);
+  }
+  return await res.json();
+}
+
+export async function appendRecordingAPI(
+  audioBlob: Blob,
+  caseId: string,
+  animalType: string,
+  language: string,
+  inputMode: string
+) {
+  const formData = new FormData();
+  formData.append('file', audioBlob, 'voice_report.wav');
+  formData.append('case_id', caseId);
+  formData.append('animal_type', animalType);
+  formData.append('language', language);
+  formData.append('input_mode', inputMode);
+
+  const res = await fetch(`${API_BASE}/cases/append-recording`, {
+    method: 'POST',
+    body: formData
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === 'string' && body.detail) detail = body.detail;
+    } catch {
+      // keep statusText
+    }
+    throw new Error(`Append recording failed: ${detail}`);
+  }
+  return await res.json();
+}
+
+export async function generateLocalizedContentAPI(
+  englishReport: any,
+  triageResult: any,
+  targetLanguage: string
+) {
+  const res = await fetch(`${API_BASE}/cases/generate-localized-content`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      english_report: englishReport,
+      triage_result: triageResult,
+      target_language: targetLanguage
+    })
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === 'string' && body.detail) detail = body.detail;
+    } catch {
+      // keep statusText
+    }
+    throw new Error(`Localized content generation failed: ${detail}`);
   }
   return await res.json();
 }

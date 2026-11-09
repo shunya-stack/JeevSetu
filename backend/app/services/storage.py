@@ -9,6 +9,17 @@ import httpx
 from app.core.config import settings
 
 
+# Map file extensions to MIME types for correct audio playback headers.
+MIME_TYPES = {
+    ".wav": "audio/wav",
+    ".mp3": "audio/mpeg",
+    ".webm": "audio/webm",
+    ".ogg": "audio/ogg",
+    ".m4a": "audio/mp4",
+    ".aac": "audio/aac",
+}
+
+
 class AudioStorage(ABC):
     @abstractmethod
     async def upload(self, content: bytes, object_key: str, content_type: str) -> str:
@@ -26,6 +37,12 @@ def validate_object_key(object_key: str) -> str:
     return str(normalized)
 
 
+def content_type_for_key(object_key: str, fallback: str = "application/octet-stream") -> str:
+    """Determine MIME type from file extension."""
+    ext = PurePosixPath(object_key).suffix.lower()
+    return MIME_TYPES.get(ext, fallback)
+
+
 class LocalAudioStorage(AudioStorage):
     async def upload(self, content: bytes, object_key: str, content_type: str) -> str:
         safe_key = validate_object_key(object_key)
@@ -39,7 +56,7 @@ class LocalAudioStorage(AudioStorage):
         path = Path(settings.AUDIO_STORAGE_PATH) / safe_key
         if not path.exists():
             raise FileNotFoundError(safe_key)
-        return path.read_bytes(), "application/octet-stream"
+        return path.read_bytes(), content_type_for_key(safe_key)
 
 
 class SupabaseAudioStorage(AudioStorage):

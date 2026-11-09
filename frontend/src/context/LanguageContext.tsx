@@ -11,7 +11,10 @@ interface LanguageContextType {
   resetDraft: () => void;
 }
 
+const DRAFT_VERSION = 2;
+
 const DEFAULT_DRAFT: FarmerReportDraft = {
+  _draft_version: DRAFT_VERSION,
   animal_type: 'cow',
   animal_identifier: '',
   animal_age_group: '',
@@ -19,6 +22,7 @@ const DEFAULT_DRAFT: FarmerReportDraft = {
   language: 'odia',
   transcript: '',
   audio_object_key: '',
+  audio_blob_url: '',
   audio_consent: true,
   urgency_level: 'review',
   urgency_reasons: [],
@@ -45,7 +49,12 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const saved = localStorage.getItem('jeevsetu_draft');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Clear stale drafts from previous versions
+        if (parsed._draft_version !== DRAFT_VERSION) {
+          return DEFAULT_DRAFT;
+        }
+        return parsed;
       } catch (e) {
         return DEFAULT_DRAFT;
       }

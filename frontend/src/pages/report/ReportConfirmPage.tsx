@@ -39,7 +39,14 @@ export const ReportConfirmPage: React.FC = () => {
         contact_consent: draft.contact_consent,
         input_mode: draft.input_mode || 'voice',
         processing_source: draft.audio_object_key ? 'gnani_prisma' : 'demo',
-        is_demo_record: false
+        is_demo_record: false,
+        // Multilingual voice workflow fields
+        original_audio_keys: draft.original_audio_keys || [draft.audio_object_key].filter(Boolean),
+        original_transcripts: draft.original_transcripts || [draft.original_transcript || draft.transcript || ''].filter(Boolean),
+        english_operator_transcript: draft.english_operator_transcript || null,
+        farmer_confirmed: draft.farmer_confirmed || false,
+        confirmation_status: draft.confirmation_status || 'pending',
+        record_more_count: draft.record_more_count || 0,
       };
 
       const result = await createCaseAPI(payload);

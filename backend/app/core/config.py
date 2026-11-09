@@ -37,13 +37,15 @@ class Settings(BaseModel):
     GNANI_EVON_MODEL: str = os.getenv("GNANI_EVON_MODEL", "gnani-evon-v3.3-30B-A3B")
     GNANI_TIMBRE_MODEL: str = os.getenv("GNANI_TIMBRE_MODEL", "timbre-v3.0")
 
-    # Reasoning LLM (Google Gemini) — used for symptom extraction when configured
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
-
-    # Reasoning LLM fallback (DeepSeek) — secondary slot for symptom extraction
+    # Reasoning LLM (NVIDIA NIM / Groq) — symptom extraction and translation
+    # NVIDIA NIM requires deploying a model (may incur cost).
+    # Groq has a free tier — sign up at https://groq.com for a free API key.
     DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
-    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
+    DEEPSEEK_BASE_URL: str = os.getenv("DEEPSEEK_BASE_URL", "https://integrate.api.nvidia.com/v1")
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+    GROQ_BASE_URL: str = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
     
     # Provider Mode: "live" or "demo"
     AI_PROVIDER_MODE: str = os.getenv("AI_PROVIDER_MODE", "demo" if not os.getenv("GNANI_API_KEY") else "live")

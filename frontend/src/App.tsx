@@ -10,7 +10,7 @@ import { HomePage } from './pages/HomePage';
 import { ReportAnimalPage } from './pages/report/ReportAnimalPage';
 import { ReportVoicePage } from './pages/report/ReportVoicePage';
 import { ReportProcessingPage } from './pages/report/ReportProcessingPage';
-import { ReportReviewPage } from './pages/report/ReportReviewPage';
+import { ReportConfirmationPage } from './pages/report/ReportConfirmationPage';
 import { ReportUrgencyPage } from './pages/report/ReportUrgencyPage';
 import { ReportLocationPage } from './pages/report/ReportLocationPage';
 import { ReportConfirmPage } from './pages/report/ReportConfirmPage';
@@ -49,7 +49,7 @@ export function App() {
             <Route path="/report" element={<ReportAnimalPage />} />
             <Route path="/report/voice" element={<ReportVoicePage />} />
             <Route path="/report/processing" element={<ReportProcessingPage />} />
-            <Route path="/report/review" element={<ReportReviewPage />} />
+            <Route path="/report/review" element={<ReportConfirmationPage />} />
             <Route path="/report/urgency" element={<ReportUrgencyPage />} />
             <Route path="/report/location" element={<ReportLocationPage />} />
             <Route path="/report/confirm" element={<ReportConfirmPage />} />

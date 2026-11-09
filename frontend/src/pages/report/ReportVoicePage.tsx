@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { MicrophoneButton } from '../../components/voice/MicrophoneButton';
 import { AudioWaveform } from '../../components/voice/AudioWaveform';
-import { uploadAndTranscribeAudio } from '../../lib/api';
+import { uploadAndTranscribeAudio, enforceLanguageAPI } from '../../lib/api';
+import { convertBlobToWav, WavConversionError } from '../../lib/wav';
 import { ArrowLeft, ArrowRight, Upload, FileText, Play, RotateCcw, AlertCircle, CheckCircle } from 'lucide-react';
 
 export const ReportVoicePage: React.FC = () => {
@@ -132,8 +133,15 @@ export const ReportVoicePage: React.FC = () => {
           setIsProcessing(false);
           return;
         }
+        // Typed text bypasses speech transcription, so it must pass through the
+        // same language enforcement rule: displayed text in the selected language.
+        const enforced = await enforceLanguageAPI(typedText, language);
         updateDraft({
-          transcript: typedText,
+          transcript: enforced.transcript,
+          enforced_language: enforced.requested_language,
+          transcript_language: enforced.transcript_language,
+          language_translated: !!enforced.language_translated,
+          original_transcript: enforced.original_transcript,
           input_mode: 'text'
         });
         navigate('/report/processing');
@@ -147,13 +155,46 @@ export const ReportVoicePage: React.FC = () => {
         return;
       }
 
+      // Convert to WAV (the transcription API rejects WebM and limits audio to 30 seconds).
+      let wavAudio;
+      try {
+        wavAudio = await convertBlobToWav(audioBlob);
+      } catch (convErr: any) {
+        console.warn("Audio conversion error:", convErr);
+        setErrorMsg(convErr instanceof WavConversionError ? convErr.message : "The audio could not be processed. Please try again or use the typed description fallback.");
+        setIsProcessing(false);
+        return;
+      }
+
       // Transcribe via API (Prisma / Demo)
-      const res = await uploadAndTranscribeAudio(audioBlob, language);
+      const res = await uploadAndTranscribeAudio(wavAudio.blob, language);
+
+      // The backend verifies the transcript is in the selected language and
+      // translates it when needed. An empty or unverified transcript is
+      // rejected here so the textarea never shows the wrong language.
+      if (!res.transcript || !res.transcript.trim()) {
+        setErrorMsg("No speech was recognised in this recording. Please re-record, speaking clearly.");
+        setIsProcessing(false);
+        return;
+      }
 
       updateDraft({
         transcript: res.transcript,
         audio_object_key: res.audio_object_key,
         audio_blob_url: audioUrl || undefined,
+        enforced_language: language,
+        transcript_language: res.transcript_language,
+        language_translated: !!res.language_translated,
+        original_transcript: res.original_transcript,
+        // Track all original recordings (supports re-record / Record More)
+        original_audio_keys: [
+          ...(draft.original_audio_keys || []),
+          res.audio_object_key,
+        ],
+        original_transcripts: [
+          ...(draft.original_transcripts || []),
+          res.original_transcript || res.transcript,
+        ],
         input_mode: inputMode
       });
 

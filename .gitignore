@@ -35,6 +35,9 @@ uploads/
 *.db
 *.sqlite3
 
+# Vercel
+.vercel/
+
 # Logs
 *.log
 

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Text, Boolean, Float, DateTime, ForeignKey, JSON
+from sqlalchemy import String, Text, Boolean, Float, DateTime, ForeignKey, JSON, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
@@ -36,6 +36,15 @@ class Case(Base):
     farmer_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     farmer_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     contact_consent: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    # Voice-first review & confirmation data
+    original_audio_keys: Mapped[list | None] = mapped_column(JSON, nullable=True)  # all original recording keys
+    original_transcripts: Mapped[list | None] = mapped_column(JSON, nullable=True)  # original-language transcripts
+    english_operator_transcript: Mapped[str | None] = mapped_column(Text, nullable=True)  # English version for operators
+    tts_audio_object_key: Mapped[str | None] = mapped_column(String(255), nullable=True)  # selected-language TTS audio
+    farmer_confirmed: Mapped[bool] = mapped_column(Boolean, default=False)  # explicit farmer confirmation
+    confirmation_status: Mapped[str] = mapped_column(String(32), default="pending")  # pending, confirmed, rejected
+    record_more_count: Mapped[int] = mapped_column(Integer, default=0)  # how many times "Record More" used
     
     status: Mapped[str] = mapped_column(String(32), default="new", index=True)
     input_mode: Mapped[str] = mapped_column(String(32), default="voice") # voice, upload, text
