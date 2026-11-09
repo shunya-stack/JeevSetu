@@ -44,6 +44,12 @@ export const Navbar: React.FC = () => {
               <a href="#about" className="hover:text-[#174B35] transition-colors">
                 {t('nav_about')}
               </a>
+              <Link
+                to="/track"
+                className="hover:text-[#174B35] transition-colors"
+              >
+                {t('bottom_track')}
+              </Link>
             </nav>
           )}
 
