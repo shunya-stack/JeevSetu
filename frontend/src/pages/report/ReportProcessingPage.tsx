@@ -91,9 +91,14 @@ export const ReportProcessingPage: React.FC = () => {
     const cachedEntry = existingCache[targetLanguage];
     if (targetLanguage !== 'english' && cachedEntry && Array.isArray(cachedEntry.localized_symptoms)) {
       // Cache hit → immediate render, zero Bhashini calls
+      const recs = Array.isArray(cachedEntry.localized_recommendations)
+        ? cachedEntry.localized_recommendations
+        : cachedEntry.localized_recommendations
+        ? [cachedEntry.localized_recommendations]
+        : [];
       updateDraft({
         localized_summary: cachedEntry.localized_summary,
-        localized_recommendations: (cachedEntry.localized_recommendations || []).join('\n'),
+        localized_recommendations: recs.join('\n'),
       });
       return cachedEntry;
     }
@@ -114,7 +119,10 @@ export const ReportProcessingPage: React.FC = () => {
     updateDraft({
       localized_content_cache: { ...existingCache, [targetLanguage]: entry },
       localized_summary: entry.localized_summary,
-      localized_recommendations: (res.localized_recommendations || []).join('\n'),
+      localized_recommendations: (() => {
+        const r = res.localized_recommendations;
+        return Array.isArray(r) ? r.join('\n') : (r || '');
+      })(),
     });
     return entry;
   };

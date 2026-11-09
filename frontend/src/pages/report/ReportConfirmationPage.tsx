@@ -91,7 +91,10 @@ export const ReportConfirmationPage: React.FC = () => {
         if (isMounted) {
           updateDraft({
             localized_summary: cachedEntry.localized_summary,
-            localized_recommendations: (cachedEntry.localized_recommendations || []).join('\n'),
+            localized_recommendations: (() => {
+              const r = cachedEntry.localized_recommendations;
+              return Array.isArray(r) ? r.join('\n') : (r || '');
+            })(),
           });
           setIsGeneratingContent(false);
           setTranslationFailed(false);
@@ -128,7 +131,10 @@ export const ReportConfirmationPage: React.FC = () => {
               [language]: entry,
             },
             localized_summary: entry.localized_summary,
-            localized_recommendations: entry.localized_recommendations.join('\n'),
+            localized_recommendations: (() => {
+              const r = entry.localized_recommendations;
+              return Array.isArray(r) ? r.join('\n') : (r || '');
+            })(),
           });
           setTranslatedLanguages(prev => [...new Set([...prev, language])]);
           setIsGeneratingContent(false);
@@ -173,7 +179,10 @@ export const ReportConfirmationPage: React.FC = () => {
             [language]: entry,
           },
           localized_summary: entry.localized_summary,
-          localized_recommendations: entry.localized_recommendations.join('\n'),
+          localized_recommendations: (() => {
+            const r = entry.localized_recommendations;
+            return Array.isArray(r) ? r.join('\n') : (r || '');
+          })(),
         });
         setIsGeneratingContent(false);
       })
