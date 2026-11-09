@@ -54,7 +54,7 @@ export const ReportConfirmPage: React.FC = () => {
       navigate(`/case/${result.id}/success`, { state: { caseData: result } });
     } catch (err: any) {
       console.error("Submission failed:", err);
-      setErrorMsg("{t('confirm_error')}");
+      setErrorMsg(t('confirm_error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -130,7 +130,7 @@ export const ReportConfirmPage: React.FC = () => {
             <div className="flex justify-between py-1 border-b border-[#E2E7DF]">
               <span className="text-[#647168]">{t('confirm_location')}:</span>
               <span className="font-medium text-[#17251D] text-right">
-                {draft.village || t('confirm_village_unspecified')}, {draft.district}
+                {draft.village || t('confirm_village_unspecified')}, {t(`district_${draft.district}`) || draft.district}
               </span>
             </div>
 

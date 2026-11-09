@@ -24,6 +24,8 @@ export const CaseSuccessPage: React.FC = () => {
     }
   }, [id, caseData]);
 
+  const urgencyLevel = caseData?.urgency_level || 'review';
+
   return (
     <div className="min-h-screen bg-[#F7F7F0] py-10 sm:py-16">
       <div className="max-w-lg mx-auto px-4 sm:px-6">
@@ -40,7 +42,7 @@ export const CaseSuccessPage: React.FC = () => {
               {t('success_title')}
             </h1>
             <p className="text-xs sm:text-sm text-[#647168] mt-1.5">
-              Your report has been successfully forwarded to the field veterinary review team.
+              {t('success_description')}
             </p>
           </div>
 
@@ -58,14 +60,23 @@ export const CaseSuccessPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Urgency Badge */}
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${
+            urgencyLevel === 'urgent' ? 'bg-[#FCE9E7] text-[#B83A35]' : 'bg-[#E2EEE5] text-[#174B35]'
+          } text-xs font-semibold`}>
+            {t('track_urgency')}: {t(`urgency_badge_${urgencyLevel}`)}
+          </div>
+
           {/* Next Steps Guidance */}
           <div className="text-left bg-[#EEF2E9]/60 rounded-2xl p-4 border border-[#E2E7DF] space-y-2 text-xs text-[#17251D]">
-            <h4 className="font-bold">Next Steps:</h4>
-            <ul className="list-disc pl-4 space-y-1 text-[#647168]">
-              <li>A field veterinary officer will review the audio transcript and symptoms.</li>
-              <li>Keep the animal clean, dry, and sheltered with water access.</li>
-              <li>Do not administer unprescribed medicines or injections.</li>
-            </ul>
+            <h4 className="font-bold">
+              {t('success_next_steps_heading')}
+            </h4>
+            <ol className="list-decimal pl-5 space-y-1 text-[#647168]">
+              <li>{t('success_next_step_1')}</li>
+              <li>{t('success_next_step_2')}</li>
+              <li>{t('success_next_step_3')}</li>
+            </ol>
           </div>
 
           {/* Action Links */}
@@ -74,7 +85,7 @@ export const CaseSuccessPage: React.FC = () => {
               to="/report"
               className="w-full py-3.5 rounded-2xl bg-[#174B35] hover:bg-[#103D2A] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-xs transition-colors"
             >
-              <span>Report Another Concern</span>
+              <span>{t('btn_report_another')}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 
@@ -83,7 +94,7 @@ export const CaseSuccessPage: React.FC = () => {
               className="w-full py-3.5 rounded-2xl bg-white border border-[#E2E7DF] hover:bg-[#F7F7F0] text-[#17251D] font-medium text-sm flex items-center justify-center gap-2 transition-colors"
             >
               <Home className="w-4 h-4 text-[#647168]" />
-              <span>Return Home</span>
+              <span>{t('btn_return_home')}</span>
             </Link>
           </div>
 
@@ -93,4 +104,3 @@ export const CaseSuccessPage: React.FC = () => {
     </div>
   );
 };
-

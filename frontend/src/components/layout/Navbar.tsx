@@ -62,7 +62,7 @@ export const Navbar: React.FC = () => {
                     }`}
                   aria-label={`Switch to ${lang}`}
                 >
-                  {lang === 'odia' ? 'ଓଡ଼ିଆ' : lang === 'hindi' ? 'हिन्दी' : 'EN'}
+                  {t(`lang_${lang}`)}
                 </button>
               ))}
             </div>

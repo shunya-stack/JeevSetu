@@ -253,7 +253,7 @@ export const ReportProcessingPage: React.FC = () => {
         }
 
         await new Promise((r) => setTimeout(r, 500));
-        navigate('/report/review');
+        navigate('/report/location');
       } catch (err: any) {
         console.error("Pipeline processing failed:", err);
         if (isMounted) {

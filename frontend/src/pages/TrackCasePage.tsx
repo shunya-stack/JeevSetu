@@ -137,13 +137,17 @@ export const TrackCasePage: React.FC = () => {
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
         <div>
-          <p className="font-semibold text-[#647168] uppercase tracking-wide text-[10px]">Animal</p>
+          <p className="font-semibold text-[#647168] uppercase tracking-wide text-[10px]">
+            {t('confirm_animal')}
+          </p>
           <p className="mt-0.5 text-[#17251D] capitalize">
             {c.animal_type ? t(`animal_${c.animal_type}`) : '—'}{c.animal_identifier ? ` (${c.animal_identifier})` : ''}
           </p>
         </div>
         <div>
-          <p className="font-semibold text-[#647168] uppercase tracking-wide text-[10px]">Submitted</p>
+          <p className="font-semibold text-[#647168] uppercase tracking-wide text-[10px]">
+            {t('review_duration_label')}
+          </p>
           <p className="mt-0.5 text-[#17251D]">{formatDate(c.created_at)}</p>
         </div>
         {(c.district || c.village) && (
@@ -166,7 +170,9 @@ export const TrackCasePage: React.FC = () => {
         <div className="flex items-start gap-2 rounded-lg border border-[#B83A35]/20 bg-[#FCE9E7]/60 p-3">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#B83A35]" />
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[#B83A35]">Flagged reasons</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-[#B83A35]">
+              {t('urgency_why_flagged')}
+            </p>
             <ul className="mt-1 list-disc pl-4 text-[11px] text-[#17251D] space-y-0.5">
               {c.urgency_reasons_json.map((r, i) => (
                 <li key={i}>{r}</li>
@@ -266,7 +272,7 @@ export const TrackCasePage: React.FC = () => {
             {!isLoadingCases && allCases.length > 0 && (
               <div className="mt-6 space-y-3">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-[#647168]">
-                  Your Cases ({allCases.length})
+                  {t('track_your_cases')} ({allCases.length})
                 </h2>
                 {allCases.map((c) => (
                   <div

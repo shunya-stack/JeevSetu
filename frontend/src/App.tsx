@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { LanguageProvider } from './context/LanguageContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
@@ -11,7 +11,6 @@ import { ReportAnimalPage } from './pages/report/ReportAnimalPage';
 import { ReportVoicePage } from './pages/report/ReportVoicePage';
 import { ReportProcessingPage } from './pages/report/ReportProcessingPage';
 import { ReportConfirmationPage } from './pages/report/ReportConfirmationPage';
-import { ReportUrgencyPage } from './pages/report/ReportUrgencyPage';
 import { ReportLocationPage } from './pages/report/ReportLocationPage';
 import { ReportConfirmPage } from './pages/report/ReportConfirmPage';
 import { CaseSuccessPage } from './pages/report/CaseSuccessPage';
@@ -50,11 +49,12 @@ export function App() {
             <Route path="/report/voice" element={<ReportVoicePage />} />
             <Route path="/report/processing" element={<ReportProcessingPage />} />
             <Route path="/report/review" element={<ReportConfirmationPage />} />
-            <Route path="/report/urgency" element={<ReportUrgencyPage />} />
             <Route path="/report/location" element={<ReportLocationPage />} />
             <Route path="/report/confirm" element={<ReportConfirmPage />} />
             <Route path="/case/:id/success" element={<CaseSuccessPage />} />
             <Route path="/track" element={<TrackCasePage />} />
+            {/* Redirect stale /report/urgency (removed Safety Evaluation page) to Location & Contact */}
+            <Route path="/report/urgency" element={<Navigate to="/report/location" replace />} />
           </Route>
 
           {/* Operator Login */}

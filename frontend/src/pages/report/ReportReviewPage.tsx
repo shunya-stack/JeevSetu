@@ -30,7 +30,7 @@ export const ReportReviewPage: React.FC = () => {
         milk_production_change: milkChange
       }
     });
-    navigate('/report/urgency');
+    navigate('/report/location');
   };
 
   return (
@@ -163,4 +163,3 @@ export const ReportReviewPage: React.FC = () => {
     </div>
   );
 };
-

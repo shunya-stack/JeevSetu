@@ -1,12 +1,26 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { ArrowLeft, ArrowRight, MapPin, Navigation, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MapPin, Navigation, AlertCircle } from 'lucide-react';
 
 const ODISHA_DISTRICTS = [
-  "Khordha", "Cuttack", "Puri", "Mayurbhanj", "Balasore", "Bhadrak",
-  "Ganjam", "Sambalpur", "Bargarh", "Angul", "Dhenkanal", "Jajpur",
-  "Kendrapara", "Jagatsinghpur", "Sundargarh", "Bolangir", "Koraput"
+  { id: 'Khordha', labelKey: 'district_khordha' },
+  { id: 'Cuttack', labelKey: 'district_cuttack' },
+  { id: 'Puri', labelKey: 'district_puri' },
+  { id: 'Mayurbhanj', labelKey: 'district_mayurbhanj' },
+  { id: 'Balasore', labelKey: 'district_balasore' },
+  { id: 'Bhadrak', labelKey: 'district_bhadrak' },
+  { id: 'Ganjam', labelKey: 'district_ganjam' },
+  { id: 'Sambalpur', labelKey: 'district_sambalpur' },
+  { id: 'Bargarh', labelKey: 'district_bargarh' },
+  { id: 'Angul', labelKey: 'district_angul' },
+  { id: 'Dhenkanal', labelKey: 'district_dhenkanal' },
+  { id: 'Jajpur', labelKey: 'district_jajpur' },
+  { id: 'Kendrapara', labelKey: 'district_kendrapara' },
+  { id: 'Jagatsinghpur', labelKey: 'district_jagatsinghpur' },
+  { id: 'Sundargarh', labelKey: 'district_sundargarh' },
+  { id: 'Bolangir', labelKey: 'district_bolangir' },
+  { id: 'Koraput', labelKey: 'district_koraput' },
 ];
 
 export const ReportLocationPage: React.FC = () => {
@@ -29,7 +43,7 @@ export const ReportLocationPage: React.FC = () => {
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
-      setErrorMsg("Geolocation is not supported by your browser. Please type village name.");
+      setErrorMsg(t('error_geolocation_not_supported'));
       return;
     }
     setGeoLocating(true);
@@ -41,7 +55,7 @@ export const ReportLocationPage: React.FC = () => {
       },
       (err) => {
         setGeoLocating(false);
-        setErrorMsg("Could not fetch GPS. Entering village and landmark is sufficient.");
+        setErrorMsg(t('error_gps_failed'));
       },
       { timeout: 8000 }
     );
@@ -49,7 +63,7 @@ export const ReportLocationPage: React.FC = () => {
 
   const handleContinue = () => {
     if (!consent) {
-      setErrorMsg("Please accept the consent to share case details with veterinary support.");
+      setErrorMsg(t('consent_label') + ' ' + t('consent_no_sensitive'));
       return;
     }
     updateDraft({
@@ -72,12 +86,12 @@ export const ReportLocationPage: React.FC = () => {
         
         {/* Navigation */}
         <div className="flex items-center justify-between mb-6">
-          <Link to="/report/urgency" className="text-sm font-medium text-[#647168] hover:text-[#17251D] flex items-center gap-1.5">
+          <Link to="/report/review" className="text-sm font-medium text-[#647168] hover:text-[#17251D] flex items-center gap-1.5">
             <ArrowLeft className="w-4 h-4" />
             {t('btn_back')}
           </Link>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#E2EEE5] text-[#174B35]">
-            Location & Contact
+            {t('location_title')}
           </span>
         </div>
 
@@ -88,7 +102,7 @@ export const ReportLocationPage: React.FC = () => {
               {t('location_title')}
             </h1>
             <p className="text-xs sm:text-sm text-[#647168] mt-1">
-              Help local veterinary doctors find the location of the animal for follow-up or field visits.
+              {t('location_description')}
             </p>
           </div>
 
@@ -105,7 +119,7 @@ export const ReportLocationPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-xs font-semibold text-[#17251D] mb-1">
-                  {t('district_label')} (ଜିଲ୍ଲା) *
+                  {t('district_label')} *
                 </label>
                 <select
                   value={district}
@@ -113,18 +127,20 @@ export const ReportLocationPage: React.FC = () => {
                   className="w-full px-3 py-2.5 rounded-xl border border-[#E2E7DF] bg-[#F7F7F0] text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#174B35]"
                 >
                   {ODISHA_DISTRICTS.map((dist) => (
-                    <option key={dist} value={dist}>{dist}</option>
+                    <option key={dist.id} value={dist.id}>
+                      {t(dist.labelKey)}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-[#17251D] mb-1">
-                  {t('block_label')} (ବ୍ଲକ / ଗ୍ରାମ)
+                  {t('block_label')} *
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Jatni / Kudiary"
+                  placeholder={t('block_label') + ' (e.g. Jatni / Kudiary)'}
                   value={village}
                   onChange={(e) => setVillage(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-xl border border-[#E2E7DF] bg-[#F7F7F0] text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#174B35]"
@@ -134,11 +150,11 @@ export const ReportLocationPage: React.FC = () => {
 
             <div>
               <label className="block text-xs font-semibold text-[#17251D] mb-1">
-                {t('landmark_label')} (ନିକଟବର୍ତ୍ତୀ ସ୍ଥାନ)
+                {t('landmark_label')} *
               </label>
               <input
                 type="text"
-                placeholder="e.g. Near Panchayat Office / Shiv Temple"
+                placeholder={t('landmark_label') + ' (e.g. Near Panchayat Office / Shiv Temple)'}
                 value={landmark}
                 onChange={(e) => setLandmark(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-[#E2E7DF] bg-[#F7F7F0] text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#174B35]"
@@ -150,7 +166,7 @@ export const ReportLocationPage: React.FC = () => {
               <div className="flex items-center gap-2 text-xs text-[#17251D]">
                 <MapPin className="w-4 h-4 text-[#174B35]" />
                 <span>
-                  {coords.lat ? `GPS: ${coords.lat.toFixed(4)}, ${coords.lng?.toFixed(4)}` : "Device GPS (Optional)"}
+                  {coords.lat ? `GPS: ${coords.lat.toFixed(4)}, ${coords.lng?.toFixed(4)}` : t('gps_label')}
                 </span>
               </div>
               <button
@@ -160,7 +176,7 @@ export const ReportLocationPage: React.FC = () => {
                 className="px-3 py-1.5 rounded-lg bg-white text-[#174B35] border border-[#E2E7DF] text-xs font-semibold hover:bg-[#E2EEE5] flex items-center gap-1 cursor-pointer"
               >
                 <Navigation className="w-3.5 h-3.5" />
-                {geoLocating ? "Fetching..." : "Use Current GPS"}
+                {geoLocating ? t('gps_fetching') : t('gps_use_current')}
               </button>
             </div>
 
@@ -169,7 +185,7 @@ export const ReportLocationPage: React.FC = () => {
           {/* Contact Details */}
           <div className="pt-2 border-t border-[#E2E7DF] space-y-4">
             <h3 className="text-sm font-bold text-[#17251D]">
-              Contact Details for Veterinary Callback
+              {t('confirm_final_review')}
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -210,7 +226,7 @@ export const ReportLocationPage: React.FC = () => {
                 className="w-5 h-5 mt-0.5 rounded text-[#174B35] focus:ring-[#174B35] cursor-pointer"
               />
               <label htmlFor="contact-consent" className="text-xs text-[#17251D] cursor-pointer leading-relaxed">
-                {t('consent_label')} No sensitive Aadhaar or personal documents are required.
+                {t('consent_label')} {t('consent_no_sensitive')}
               </label>
             </div>
 
@@ -222,7 +238,7 @@ export const ReportLocationPage: React.FC = () => {
             onClick={handleContinue}
             className="w-full py-4 rounded-2xl bg-[#174B35] hover:bg-[#103D2A] text-white font-semibold text-base flex items-center justify-center gap-2 shadow-sm transition-all transform hover:-translate-y-0.5 cursor-pointer"
           >
-            <span>Review Final Summary</span>
+            <span>{t('btn_review_final_summary')}</span>
             <ArrowRight className="w-5 h-5" />
           </button>
 
@@ -232,4 +248,3 @@ export const ReportLocationPage: React.FC = () => {
     </div>
   );
 };
-

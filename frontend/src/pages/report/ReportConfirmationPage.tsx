@@ -24,10 +24,10 @@ import { Language } from '../../types';
 
 type ConfirmationStatus = 'idle' | 'confirmed' | 'rejected' | 'submitting';
 
-const LANGUAGE_BUTTONS: { key: Language; label: string }[] = [
-  { key: 'odia', label: 'ଓଡ଼ିଆ' },
-  { key: 'hindi', label: 'हिंदी' },
-  { key: 'english', label: 'English' },
+const LANGUAGE_BUTTONS: { key: Language; labelKey: string }[] = [
+  { key: 'odia', labelKey: 'lang_odia' },
+  { key: 'hindi', labelKey: 'lang_hindi' },
+  { key: 'english', labelKey: 'lang_english' },
 ];
 
 export const ReportConfirmationPage: React.FC = () => {
@@ -205,8 +205,8 @@ export const ReportConfirmationPage: React.FC = () => {
       confirmation_status: 'confirmed',
     });
 
-    // Navigate to urgency page after confirmation
-    navigate('/report/urgency');
+    // Navigate to Location & Contact after confirmation (Safety Evaluation page removed)
+    navigate('/report/location');
   };
 
   // Farmer rejects - allow re-record
@@ -276,7 +276,7 @@ export const ReportConfirmationPage: React.FC = () => {
       navigate(`/case/${result.id}/success`, { state: { caseData: result } });
     } catch (err: any) {
       console.error("Case submission failed:", err);
-      setErrorMsg("Failed to submit case. Please check server connection.");
+      setErrorMsg(t('confirm_error'));
       setConfirmStatus('confirmed');
     }
   };
@@ -346,7 +346,7 @@ export const ReportConfirmationPage: React.FC = () => {
                       : 'text-[#647168] hover:text-[#17251D]'
                   }`}
                 >
-                  {btn.label}
+                  {t(btn.labelKey)}
                 </button>
               ))}
             </div>
