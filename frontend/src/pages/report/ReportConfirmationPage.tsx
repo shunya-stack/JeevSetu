@@ -287,6 +287,16 @@ export const ReportConfirmationPage: React.FC = () => {
   const hasRecording = !!draft.audio_object_key;
   // Per-language translation entry driving the whole dynamic view
   const entry = draft.localized_content_cache?.[language];
+  // Coerce cache-entry list fields to arrays. Legacy cache entries / drafts may
+  // store them as strings, which would crash .map() / .join() downstream.
+  const asArray = (v: unknown): string[] =>
+    Array.isArray(v) ? v : typeof v === 'string' ? [v] : [];
+  const symptomsArr = asArray(entry?.localized_symptoms);
+  const urgencyReasonsArr = asArray(entry?.localized_urgency_reasons);
+  const recommendationsArr = asArray(entry?.localized_recommendations);
+  const precautionsArr = asArray(entry?.localized_precautions);
+  const causesArr = asArray(entry?.localized_possible_causes);
+  const followupsArr = asArray(entry?.localized_followup_questions);
   const urgencyCode = (draft.urgency_level || entry?.urgency_level || 'review') as string;
   const audioLangLabel = t(`lang_${draft.transcript_language || language}`);
 
@@ -474,9 +484,9 @@ export const ReportConfirmationPage: React.FC = () => {
                 {t('review_ai_extracted')}
               </span>
             </div>
-            {(entry?.localized_symptoms?.length || 0) > 0 ? (
+            {(symptomsArr.length || 0) > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {entry!.localized_symptoms!.map((sym, i) => (
+                {symptomsArr.map((sym, i) => (
                   <span
                     key={i}
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#E2EEE5] text-[#174B35] text-xs font-semibold"
@@ -504,9 +514,9 @@ export const ReportConfirmationPage: React.FC = () => {
                 {t(`urgency_badge_${urgencyCode}`)}
               </span>
             </div>
-            {(entry?.localized_urgency_reasons?.length || 0) > 0 && (
+            {(urgencyReasonsArr.length || 0) > 0 && (
               <ul className="list-disc pl-5 space-y-1 text-xs text-[#17251D]">
-                {entry!.localized_urgency_reasons!.map((r, i) => (
+                {urgencyReasonsArr.map((r, i) => (
                   <li key={i}>{r}</li>
                 ))}
               </ul>
@@ -521,9 +531,9 @@ export const ReportConfirmationPage: React.FC = () => {
               {entry?.fixed?.what_to_do || t('review_recommended_label')}
             </label>
 
-            {(entry?.localized_recommendations?.length || 0) > 0 && (
+            {(recommendationsArr.length || 0) > 0 && (
               <ol className="space-y-2.5">
-                {entry!.localized_recommendations!.map((step, i) => (
+                {recommendationsArr.map((step, i) => (
                   <li key={i} className="flex items-start gap-2.5 bg-[#E2EEE5] rounded-xl p-3 border border-[#174B35]/20">
                     <span className="shrink-0 w-5 h-5 rounded-full bg-[#174B35] text-white text-[10px] font-bold flex items-center justify-center mt-0.5">
                       {i + 1}
@@ -534,13 +544,13 @@ export const ReportConfirmationPage: React.FC = () => {
               </ol>
             )}
 
-            {(entry?.localized_precautions?.length || 0) > 0 && (
+            {(precautionsArr.length || 0) > 0 && (
               <div className="space-y-1.5 pt-1">
                 <p className="text-[11px] font-bold text-[#17251D] uppercase tracking-wide">
                   {t('review_precautions_title')}
                 </p>
                 <ul className="list-disc pl-5 space-y-1 text-xs text-[#17251D]">
-                  {entry!.localized_precautions!.map((p, i) => (
+                  {precautionsArr.map((p, i) => (
                     <li key={i}>{p}</li>
                   ))}
                 </ul>
@@ -567,13 +577,13 @@ export const ReportConfirmationPage: React.FC = () => {
 
           {/* H. Possible causes — clearly marked as possibilities, never a
               confirmed diagnosis. */}
-          {(entry?.localized_possible_causes?.length || 0) > 0 && (
+          {(causesArr.length || 0) > 0 && (
             <div className="space-y-2">
               <label className="text-xs font-bold text-[#17251D] flex items-center gap-1.5">
                 {t('review_causes_label')}
               </label>
               <div className="flex flex-wrap gap-2">
-                {entry!.localized_possible_causes!.map((cause, i) => (
+                {causesArr.map((cause, i) => (
                   <span key={i} className="px-3 py-1.5 rounded-xl bg-[#FFF2D9] text-[#A85C12] text-xs font-medium">
                     {cause}
                   </span>
@@ -584,13 +594,13 @@ export const ReportConfirmationPage: React.FC = () => {
           )}
 
           {/* I. Follow-up questions — only questions needing farmer answers. */}
-          {(entry?.localized_followup_questions?.length || 0) > 0 && (
+          {(followupsArr.length || 0) > 0 && (
             <div className="space-y-2">
               <label className="text-xs font-bold text-[#17251D] flex items-center gap-1.5">
                 {t('review_followups_label')}
               </label>
               <ol className="space-y-1.5 pl-1">
-                {entry!.localized_followup_questions!.map((q, i) => (
+                {followupsArr.map((q, i) => (
                   <li key={i} className="flex items-start gap-2 text-xs sm:text-sm text-[#17251D]">
                     <span className="shrink-0 font-bold text-[#174B35]">{i + 1}.</span>
                     <span className="leading-relaxed">{q}</span>
