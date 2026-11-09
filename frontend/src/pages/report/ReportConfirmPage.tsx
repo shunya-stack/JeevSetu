@@ -149,12 +149,6 @@ export const ReportConfirmPage: React.FC = () => {
               </div>
             )}
 
-            <div className="py-2">
-              <span className="text-[#647168] block mb-1">{t('confirm_transcript')}</span>
-              <p className="p-3 bg-white rounded-xl border border-[#E2E7DF] text-xs text-[#17251D] italic leading-relaxed">
-                "{draft.transcript || t('confirm_transcript_na')}"
-              </p>
-            </div>
           </div>
 
           {/* Submit Actions */}
