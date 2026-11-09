@@ -129,14 +129,14 @@ export const ReportConfirmPage: React.FC = () => {
             <div className="flex justify-between py-1 border-b border-[#E2E7DF]">
               <span className="text-[#647168]">{t('confirm_location')}:</span>
               <span className="font-medium text-[#17251D] text-right">
-                {draft.village || t('confirm_village_unspecified')}, {t(`district_${draft.district}`) || draft.district}
+                {draft.village || t('confirm_village_unspecified')}, {t(`district_${(draft.district || '').toLowerCase()}`) || draft.district}
               </span>
             </div>
 
             <div className="flex justify-between py-1 border-b border-[#E2E7DF]">
               <span className="text-[#647168]">{t('confirm_reported_symptoms')}:</span>
               <span className="font-medium text-[#17251D] text-right max-w-xs">
-                {draft.symptom_extraction?.symptoms_reported?.map((s: any) => s.value).join(', ') || (draft.localized_content_cache?.[language]?.localized_symptoms as string[] | undefined)?.join(', ') || t('confirm_symptoms_na')}
+                {(draft.localized_content_cache?.[language]?.localized_symptoms as string[] | undefined)?.join(', ') || draft.symptom_extraction?.symptoms_reported?.map((s: any) => s.value).join(', ') || t('confirm_symptoms_na')}
               </span>
             </div>
 
