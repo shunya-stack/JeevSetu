@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getVeterinaryServicesAPI } from '../../lib/api';
 import { VeterinaryServiceRecord } from '../../types';
 import { LeafletMap } from '../../components/maps/LeafletMap';
-import { Building, Phone, MapPin, Search, Filter, ShieldCheck, Map, List } from 'lucide-react';
+import { Building, Phone, MapPin, Search, Filter, Map, List } from 'lucide-react';
 
 export const VetDirectoryPage: React.FC = () => {
   const [vets, setVets] = useState<VeterinaryServiceRecord[]>([]);
@@ -82,19 +82,6 @@ export const VetDirectoryPage: React.FC = () => {
             <List className="w-3.5 h-3.5" /> List Only
           </button>
         </div>
-      </div>
-
-      {/* Safety Notice */}
-      <div className="p-3.5 rounded-2xl bg-[#FFF2D9] border border-[#D89A32]/40 text-xs text-[#A85C12] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-[#A85C12]" />
-          <span>
-            SAMPLE DIRECTORY: Veterinary coordinates and telephone numbers are for hackathon demonstration.
-          </span>
-        </div>
-        <span className="font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-white/70">
-          DEMO DATA
-        </span>
       </div>
 
       {/* Search & District Filter */}

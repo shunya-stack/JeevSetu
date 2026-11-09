@@ -38,8 +38,7 @@ export const ReportConfirmPage: React.FC = () => {
         farmer_phone: draft.farmer_phone || null,
         contact_consent: draft.contact_consent,
         input_mode: draft.input_mode || 'voice',
-        processing_source: draft.audio_object_key ? 'bhashini_asr' : 'demo',
-        is_demo_record: false,
+        processing_source: draft.audio_object_key ? 'bhashini_asr' : '',
         // Multilingual voice workflow fields
         original_audio_keys: draft.original_audio_keys || [draft.audio_object_key].filter(Boolean),
         original_transcripts: draft.original_transcripts || [draft.original_transcript || draft.transcript || ''].filter(Boolean),

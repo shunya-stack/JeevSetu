@@ -158,12 +158,6 @@ export const CaseDetailPage: React.FC = () => {
             Submitted on {new Date(caseRecord.created_at).toLocaleString()} • Language: {caseRecord.language.toUpperCase()}
           </p>
         </div>
-
-        {caseRecord.is_demo_record && (
-          <div className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
-            DEMO RECORD — SAMPLE CASE
-          </div>
-        )}
       </div>
 
       {notice && (

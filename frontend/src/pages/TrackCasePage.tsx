@@ -130,9 +130,6 @@ export const TrackCasePage: React.FC = () => {
         <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold capitalize ${urgencyColor(c.urgency_level || 'info_needed')}`}>
           {t('track_urgency')}: {c.urgency_level ? t(`urgency_badge_${c.urgency_level}`) : t('urgency_badge_info_needed')}
         </span>
-        {c.is_demo_record && (
-          <span className="rounded-full bg-[#FFF2D9] px-2.5 py-0.5 text-[10px] font-bold text-[#A85C12]">Demo record</span>
-        )}
       </div>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
