@@ -14,7 +14,6 @@ import {
   X,
   AlertTriangle,
   RefreshCw,
-  FileText,
   Speaker,
   ShieldAlert,
   Info,
@@ -368,38 +367,6 @@ export const ReportConfirmationPage: React.FC = () => {
                 </p>
               </div>
             )}
-          </div>
-
-          {/* English Operator Report (for vets only - separate section at bottom) */}
-          <div className="space-y-2 border-t border-[#E2E7DF] pt-4">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-[#17251D] flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-[#174B35]" />
-                English (Operator View)
-              </label>
-              <span className="text-[11px] font-semibold text-[#174B35] bg-[#E2EEE5] px-2 py-0.5 rounded-md">
-                For Veterinary Staff
-              </span>
-            </div>
-            <p className="text-[11px] text-[#647168] italic leading-relaxed bg-[#F7F7F0] p-3 rounded-xl border border-[#E2E7DF]">
-              {draft.english_operator_transcript || draft.transcript || 'English translation pending'}
-            </p>
-          </div>
-
-          {/* Original Transcript (farmer's spoken language) */}
-          <div className="space-y-2 border-t border-[#E2E7DF] pt-4">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-[#17251D] flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-[#174B35]" />
-                Your Spoken Transcript
-              </label>
-              <span className="text-[11px] font-semibold text-[#174B35] bg-[#E2EEE5] px-2 py-0.5 rounded-md">
-                {draft.transcript_language || language}
-              </span>
-            </div>
-            <p className="text-[11px] text-[#17251D] italic leading-relaxed bg-[#F7F7F0] p-3 rounded-xl border border-[#E2E7DF]">
-              "{draft.original_transcript || draft.transcript || 'No transcript available'}"
-            </p>
           </div>
 
           {/* Action Buttons */}

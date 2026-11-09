@@ -4,6 +4,43 @@ const configuredApiOrigin = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, ''
 export const API_ORIGIN = configuredApiOrigin || window.location.origin;
 const API_BASE = configuredApiOrigin ? `${configuredApiOrigin}/api` : '/api';
 
+const DEVICE_CASES_KEY = 'jeevsetu_device_cases';
+const MAX_DEVICE_CASES = 50;
+
+/**
+ * Cases created on this device (browser). Used by Track Case so a new
+ * device only shows cases actually created here, not everyone's records.
+ */
+function rememberDeviceCase(reference: string) {
+  try {
+    const refs: string[] = JSON.parse(localStorage.getItem(DEVICE_CASES_KEY) || '[]');
+    if (!refs.includes(reference)) {
+      refs.unshift(reference);
+      localStorage.setItem(DEVICE_CASES_KEY, JSON.stringify(refs.slice(0, MAX_DEVICE_CASES)));
+    }
+  } catch {
+    // localStorage unavailable — tracking is best-effort only
+  }
+}
+
+export function getDeviceCaseRefs(): string[] {
+  try {
+    const refs = JSON.parse(localStorage.getItem(DEVICE_CASES_KEY) || '[]');
+    return Array.isArray(refs) ? refs.filter((r) => typeof r === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function forgetDeviceCase(reference: string) {
+  try {
+    const refs = getDeviceCaseRefs().filter((r) => r !== reference);
+    localStorage.setItem(DEVICE_CASES_KEY, JSON.stringify(refs));
+  } catch {
+    // ignore
+  }
+}
+
 export async function checkBackendHealth() {
   try {
     const res = await fetch(`${API_BASE}/health`);
@@ -254,7 +291,11 @@ export async function createCaseAPI(caseData: any): Promise<CaseRecord> {
   if (!res.ok) {
     throw new Error(`Failed to submit case: ${res.statusText}`);
   }
-  return await res.json();
+  const record: CaseRecord = await res.json();
+  if (record?.public_reference) {
+    rememberDeviceCase(record.public_reference);
+  }
+  return record;
 }
 
 export async function getCasesAPI(params: {
