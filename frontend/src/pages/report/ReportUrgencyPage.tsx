@@ -4,11 +4,17 @@ import { useLanguage } from '../../context/LanguageContext';
 import { ShieldAlert, AlertCircle, ArrowRight, ArrowLeft, PhoneCall, CheckCircle } from 'lucide-react';
 
 export const ReportUrgencyPage: React.FC = () => {
-  const { t, draft } = useLanguage();
+  const { t, draft, language } = useLanguage();
   const navigate = useNavigate();
 
   const isUrgent = draft.urgency_level === 'urgent';
   const isReview = draft.urgency_level === 'review';
+  // Translated urgency reasons from the Bhashini cache (fall back to the
+  // canonical English reasons only when no cached translation exists).
+  const localizedReasons =
+    draft.localized_content_cache?.[language]?.localized_urgency_reasons ||
+    draft.urgency_reasons ||
+    [];
 
   return (
     <div className="min-h-screen bg-[#F7F7F0] py-6 sm:py-10">
@@ -21,7 +27,7 @@ export const ReportUrgencyPage: React.FC = () => {
             {t('btn_back')}
           </Link>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#E2EEE5] text-[#174B35]">
-            Safety Evaluation
+            {t('urgency_safety_eval_step')}
           </span>
         </div>
 
@@ -36,7 +42,7 @@ export const ReportUrgencyPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-[#B83A35]">
-                    Emergency Warning Flag
+                    {t('urgency_flag_emergency')}
                   </span>
                   <h2 className="text-lg sm:text-xl font-extrabold text-[#17251D]">
                     {t('urgency_urgent_title')}
@@ -46,22 +52,20 @@ export const ReportUrgencyPage: React.FC = () => {
 
               <div className="text-xs sm:text-sm text-[#17251D] space-y-2 pt-2 border-t border-[#B83A35]/20">
                 <p className="font-semibold text-[#B83A35]">
-                  Why this case was flagged for immediate attention:
+                  {t('urgency_why_flagged')}
                 </p>
                 <ul className="list-disc pl-5 space-y-1 text-[#17251D]">
-                  {draft.urgency_reasons?.map((r, i) => (
-                    <li key={i}>{r}</li>
-                  )) || <li>Life-threatening clinical distress detected from symptoms.</li>}
+                  {localizedReasons.length > 0 ? localizedReasons.map((r, i) => (<li key={i}>{r}</li>)) : (<li>{t(isUrgent ? 'urgency_default_reason_urgent' : 'urgency_default_reason_review')}</li>)}
                 </ul>
               </div>
 
               {/* Immediate Recommended Actions */}
               <div className="bg-white/80 rounded-xl p-3.5 border border-[#B83A35]/30">
                 <h4 className="text-xs font-bold text-[#17251D] uppercase mb-1">
-                  Immediate Instructions:
+                  {t('urgency_instructions_label')}
                 </h4>
                 <p className="text-xs text-[#17251D] leading-relaxed">
-                  {draft.immediate_actions?.[0] || "Keep animal in a shaded, well-ventilated area. Do not force feed or give unprescribed medications. Contact local Block Veterinary Dispensary immediately."}
+                  {(draft.localized_content_cache?.[language]?.localized_recommendations as any)?.[0] || draft.immediate_actions?.[0] || t('urgency_default_action')}
                 </p>
               </div>
             </div>
@@ -76,7 +80,7 @@ export const ReportUrgencyPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-[#A85C12]">
-                    Operational Priority
+                    {t('urgency_priority_label')}
                   </span>
                   <h2 className="text-lg sm:text-xl font-extrabold text-[#17251D]">
                     {t('urgency_review_title')}
@@ -85,11 +89,9 @@ export const ReportUrgencyPage: React.FC = () => {
               </div>
 
               <div className="text-xs sm:text-sm text-[#17251D] space-y-2 pt-2 border-t border-[#D89A32]/30">
-                <p className="font-semibold text-[#A85C12]">Evaluation reason:</p>
+                <p className="font-semibold text-[#A85C12]">{t('urgency_eval_reason')}</p>
                 <ul className="list-disc pl-5 space-y-1">
-                  {draft.urgency_reasons?.map((r, i) => (
-                    <li key={i}>{r}</li>
-                  )) || <li>Reported symptoms warrant clinical veterinary examination within 24 hours.</li>}
+                  {localizedReasons.length > 0 ? localizedReasons.map((r, i) => (<li key={i}>{r}</li>)) : (<li>{t(isUrgent ? 'urgency_default_reason_urgent' : 'urgency_default_reason_review')}</li>)}
                 </ul>
               </div>
             </div>
@@ -97,9 +99,9 @@ export const ReportUrgencyPage: React.FC = () => {
 
           {/* Strict Safety Boundary Callout */}
           <div className="p-4 rounded-2xl bg-[#F7F7F0] border border-[#E2E7DF] text-xs text-[#647168] space-y-1">
-            <p className="font-bold text-[#17251D]">Safety Notice:</p>
+            <p className="font-bold text-[#17251D]">{t('urgency_safety_notice')}</p>
             <p>
-              This system does not diagnose or prescribe medicine, dosage, or injections. All cases are queued for licensed veterinary professionals.
+              {t('urgency_safety_body')}
             </p>
           </div>
 
@@ -109,7 +111,7 @@ export const ReportUrgencyPage: React.FC = () => {
             onClick={() => navigate('/report/location')}
             className="w-full py-4 rounded-2xl bg-[#174B35] hover:bg-[#103D2A] text-white font-semibold text-base flex items-center justify-center gap-2 shadow-sm transition-all transform hover:-translate-y-0.5 cursor-pointer"
           >
-            <span>Proceed to Location & Contact</span>
+            <span>{t('urgency_proceed')}</span>
             <ArrowRight className="w-5 h-5" />
           </button>
 

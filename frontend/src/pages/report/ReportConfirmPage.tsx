@@ -5,7 +5,7 @@ import { createCaseAPI } from '../../lib/api';
 import { ArrowLeft, Check, ShieldAlert, AlertCircle, MapPin, User, Loader2 } from 'lucide-react';
 
 export const ReportConfirmPage: React.FC = () => {
-  const { t, draft, resetDraft } = useLanguage();
+  const { t, draft, resetDraft, language } = useLanguage();
   const navigate = useNavigate();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,7 +38,7 @@ export const ReportConfirmPage: React.FC = () => {
         farmer_phone: draft.farmer_phone || null,
         contact_consent: draft.contact_consent,
         input_mode: draft.input_mode || 'voice',
-        processing_source: draft.audio_object_key ? 'gnani_prisma' : 'demo',
+        processing_source: draft.audio_object_key ? 'bhashini_asr' : 'demo',
         is_demo_record: false,
         // Multilingual voice workflow fields
         original_audio_keys: draft.original_audio_keys || [draft.audio_object_key].filter(Boolean),
@@ -54,7 +54,7 @@ export const ReportConfirmPage: React.FC = () => {
       navigate(`/case/${result.id}/success`, { state: { caseData: result } });
     } catch (err: any) {
       console.error("Submission failed:", err);
-      setErrorMsg("Failed to persist case to backend. Please check server connection.");
+      setErrorMsg("{t('confirm_error')}");
     } finally {
       setIsSubmitting(false);
     }
@@ -70,10 +70,10 @@ export const ReportConfirmPage: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <Link to="/report/location" className="text-sm font-medium text-[#647168] hover:text-[#17251D] flex items-center gap-1.5">
             <ArrowLeft className="w-4 h-4" />
-            Edit Location
+            {t('confirm_edit_location')}
           </Link>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#E2EEE5] text-[#174B35]">
-            Final Review
+            {t('confirm_final_review')}
           </span>
         </div>
 
@@ -81,10 +81,10 @@ export const ReportConfirmPage: React.FC = () => {
           
           <div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-[#17251D]">
-              Confirm Case Details
+              {t('confirm_title')}
             </h1>
             <p className="text-xs sm:text-sm text-[#647168] mt-1">
-              Review information before forwarding to the local veterinary intake dashboard.
+              {t('confirm_subtitle')}
             </p>
           </div>
 
@@ -105,45 +105,45 @@ export const ReportConfirmPage: React.FC = () => {
                 <AlertCircle className="w-6 h-6 text-[#A85C12]" />
               )}
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#647168]">Priority</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#647168]">{t('confirm_priority')}</span>
                 <h4 className="text-sm font-bold text-[#17251D]">
-                  {isUrgent ? "Urgent Veterinary Attention" : "Standard Veterinary Review"}
+                  {isUrgent ? t('confirm_urgent_headline') : t('confirm_review_headline')}
                 </h4>
               </div>
             </div>
             <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
               isUrgent ? 'bg-[#B83A35] text-white' : 'bg-[#D89A32] text-white'
             }`}>
-              {draft.urgency_level.toUpperCase()}
+              {t(`urgency_badge_${(draft.urgency_level || 'review').toLowerCase() === 'urgent' ? 'urgent' : 'review'}`)}
             </span>
           </div>
 
           {/* Details Table Card */}
           <div className="rounded-2xl bg-[#F7F7F0] p-4 border border-[#E2E7DF] space-y-3 text-xs sm:text-sm">
             <div className="flex justify-between py-1 border-b border-[#E2E7DF]">
-              <span className="text-[#647168]">Animal:</span>
+              <span className="text-[#647168]">{t('confirm_animal')}:</span>
               <span className="font-bold text-[#17251D] capitalize">
-                {draft.animal_type} {draft.animal_identifier ? `(${draft.animal_identifier})` : ''}
+                {t(`animal_${draft.animal_type || 'other'}`)} {draft.animal_identifier ? `(${draft.animal_identifier})` : ''}
               </span>
             </div>
 
             <div className="flex justify-between py-1 border-b border-[#E2E7DF]">
-              <span className="text-[#647168]">Location:</span>
+              <span className="text-[#647168]">{t('confirm_location')}:</span>
               <span className="font-medium text-[#17251D] text-right">
-                {draft.village || 'Village not specified'}, {draft.district}
+                {draft.village || t('confirm_village_unspecified')}, {draft.district}
               </span>
             </div>
 
             <div className="flex justify-between py-1 border-b border-[#E2E7DF]">
-              <span className="text-[#647168]">Reported Symptoms:</span>
+              <span className="text-[#647168]">{t('confirm_reported_symptoms')}:</span>
               <span className="font-medium text-[#17251D] text-right max-w-xs">
-                {draft.symptom_extraction?.symptoms_reported?.map(s => s.value).join(', ') || 'Off feed / general illness'}
+                {(draft.localized_content_cache?.[language]?.localized_symptoms as string[] | undefined)?.join(', ') || draft.symptom_extraction?.symptoms_reported?.map(s => s.value).join(', ') || t('confirm_symptoms_na')}
               </span>
             </div>
 
             {draft.farmer_name && (
               <div className="flex justify-between py-1 border-b border-[#E2E7DF]">
-                <span className="text-[#647168]">Farmer:</span>
+                <span className="text-[#647168]">{t('confirm_farmer')}:</span>
                 <span className="font-medium text-[#17251D]">
                   {draft.farmer_name} {draft.farmer_phone ? `(${draft.farmer_phone})` : ''}
                 </span>
@@ -151,9 +151,9 @@ export const ReportConfirmPage: React.FC = () => {
             )}
 
             <div className="py-2">
-              <span className="text-[#647168] block mb-1">Spoken Transcript:</span>
+              <span className="text-[#647168] block mb-1">{t('confirm_transcript')}</span>
               <p className="p-3 bg-white rounded-xl border border-[#E2E7DF] text-xs text-[#17251D] italic leading-relaxed">
-                "{draft.transcript || 'Spoken description captured'}"
+                "{draft.transcript || t('confirm_transcript_na')}"
               </p>
             </div>
           </div>
@@ -169,7 +169,7 @@ export const ReportConfirmPage: React.FC = () => {
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Submitting Case...</span>
+                  <span>{t('confirm_submitting')}</span>
                 </>
               ) : (
                 <>
@@ -183,7 +183,7 @@ export const ReportConfirmPage: React.FC = () => {
               to="/report"
               className="block w-full py-3 rounded-2xl text-center text-xs font-semibold text-[#647168] hover:text-[#17251D] transition-colors"
             >
-              Discard and Start Over
+              {t('confirm_discard')}
             </Link>
           </div>
 

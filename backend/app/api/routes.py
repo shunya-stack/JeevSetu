@@ -1,6 +1,7 @@
 import os
+import re
 import uuid
-import random
+import hashlib
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from fastapi.responses import Response
@@ -16,10 +17,16 @@ from app.schemas.case import (
     AppendRecordingResponse, ConfirmCaseRequest, ConfirmCaseResponse
 )
 from app.services.triage.engine import evaluate_triage
-from app.services.gnani.factory import get_speech_provider, get_reasoning_provider, get_voice_provider
+from app.services.ai_factory import (
+    get_speech_provider,
+    get_reasoning_provider,
+    get_voice_provider,
+    provider_mode,
+)
 from app.services.language_service import ensure_selected_language
 from app.services.storage import get_audio_storage
-from app.services.translation import get_translation_provider
+from app.services.bhashini_service import BhashiniError, get_bhashini_client
+from app.services.evon_service import EvonError
 
 router = APIRouter(prefix="/api")
 
@@ -68,22 +75,29 @@ async def health_check():
 
 @router.get("/integrations/status")
 async def integration_status():
-    has_api_key = bool(settings.GNANI_API_KEY)
+    bhashini_client = get_bhashini_client()
+    evon_live = bool(settings.EVON_API_URL and settings.EVON_API_KEY)
     return {
         "provider_mode": settings.AI_PROVIDER_MODE,
-        "gnani": {
-            "api_key_configured": has_api_key,
-            "base_url": settings.GNANI_API_BASE_URL,
-            "prisma_model": settings.GNANI_PRISMA_MODEL,
-            "prisma_status": "live" if (has_api_key and settings.AI_PROVIDER_MODE == "live") else "demo_mode",
-            "timbre_model": settings.GNANI_TIMBRE_MODEL,
-            "timbre_status": "live" if (has_api_key and settings.AI_PROVIDER_MODE == "live") else "demo_mode"
+        "evon": {
+            "api_key_configured": bool(settings.EVON_API_KEY),
+            "api_url": settings.EVON_API_URL,
+            "model": settings.EVON_MODEL,
+            "status": "live" if evon_live else "not_configured",
+        },
+        "bhashini": {
+            "api_key_configured": bool(settings.BHASHINI_API_KEY),
+            "asr_url": settings.BHASHINI_ASR_URL,
+            "translation_url": settings.BHASHINI_TRANSLATION_URL,
+            "tts_url": settings.BHASHINI_TTS_URL,
+            "asr_status": "live" if bhashini_client.asr_configured else "not_configured",
+            "translation_status": "live" if bhashini_client.translation_configured else "not_configured",
+            "tts_status": "live" if bhashini_client.tts_configured else "not_configured",
         },
         "reasoning": {
-            "provider": "nvidia_nim",
-            "model": settings.DEEPSEEK_MODEL,
-            "base_url": settings.DEEPSEEK_BASE_URL,
-            "status": "live" if settings.DEEPSEEK_API_KEY else "not_configured"
+            "provider": "evon",
+            "model": settings.EVON_MODEL,
+            "status": "live" if evon_live else "not_configured",
         },
         "database": {
             "engine": "sqlite" if "sqlite" in settings.DATABASE_URL else "postgresql",
@@ -131,15 +145,17 @@ async def transcribe_audio(
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Audio storage is unavailable.") from exc
 
-    # Transcribe via speech provider (live only — no demo fallback)
+        # Transcribe via Bhashini ASR (supports Odia, Hindi, English and
+    # language auto-detection where the configured service offers it).
+    # No demo fallback in live mode — failures surface honestly.
     provider = get_speech_provider()
-    language_hint = (language or "").lower()
+    language_hint = (language or "odia").lower()
     try:
         result = await provider.transcribe(audio_bytes, file.filename, language_hint=language_hint)
     except Exception as e:
         print(f"[transcribe] upstream speech provider error ({type(e).__name__}): {e}", flush=True)
         detail = str(e).strip() or type(e).__name__
-        raise HTTPException(status_code=502, detail=f"Live speech transcription failed: {detail[:400]}") from e
+        raise HTTPException(status_code=502, detail=f"Speech transcription failed: {detail[:400]}") from e
 
     transcript = result.get("transcript", "") or ""
     detected_lang = result.get("detected_language") or language_hint
@@ -150,56 +166,54 @@ async def transcribe_audio(
             detail="No speech was recognised in this recording. Please re-record, speaking clearly."
         )
 
-    # Honest STT support notice: Gnani Prisma does not natively support Odia.
-    stt_support_note = None
-    if language_hint == "odia":
-        stt_support_note = (
-            "Gnani Prisma does not support Odia natively (indic-auto fallback only). "
-            "Recognition quality for Odia may be lower than for Hindi/English. "
-            "The detected language is reported below — verify it matches what you spoke."
-        )
-
-    # Store the original-language transcript. Translation to English and to the
-    # farmer's selected language happens in dedicated downstream steps.
+    # Store the original-language transcript. Translation to English and to
+    # the farmer's display language happens in dedicated downstream steps.
+    result.pop("note", None)
     result["audio_object_key"] = storage_name
     result["original_transcript"] = transcript
-    result["transcript"] = transcript  # original-language transcript for now
+    result["transcript"] = transcript  # original-language transcript
     result["transcript_language"] = detected_lang
     result["requested_app_language"] = language_hint
     result["language_enforcement"] = "original_language_preserved"
-    result["stt_support_note"] = stt_support_note
     return result
 
 
 @router.post("/cases/translate-to-english")
 async def translate_to_english(payload: dict):
     """
-    Translate a farmer's transcript (in Odia, Hindi, English, or code-mixed)
-    into English for the veterinary operator. The original transcript is
-    preserved and returned alongside the English translation.
+    Bhashini translation of the farmer's transcript (Odia/Hindi/English) into
+    English for the Evon analysis step. The original transcript is preserved.
     """
     transcript = payload.get("transcript", "")
-    source_language = payload.get("source_language", "odia")
+    source_language = (payload.get("source_language") or "odia").lower()
+    if source_language not in ("odia", "hindi", "english"):
+        source_language = "odia"
 
     if not transcript.strip():
         raise HTTPException(status_code=400, detail="Transcript is empty.")
 
-    translator = get_translation_provider()
-
+    client = get_bhashini_client()
+    demo_passthrough = (
+        not client.translation_configured and provider_mode() == "demo"
+    )
     try:
-        result = await translator.translate_to_english(transcript, source_language)
-    except Exception as exc:
+        if demo_passthrough:
+            english = transcript
+        else:
+            english = await client.translate_text(transcript, source_language, "english")
+    except BhashiniError as exc:
         print(f"[translate-to-english] provider error ({type(exc).__name__}): {exc}", flush=True)
-        detail = str(exc).strip() or type(exc).__name__
-        raise HTTPException(status_code=502, detail=f"Translation failed: {detail[:400]}") from exc
+        raise HTTPException(status_code=502, detail=f"Translation failed: {str(exc)[:400]}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Translation failed: {type(exc).__name__}") from exc
 
     return {
         "original_transcript": transcript,
-        "source_language": result.get("source_language", source_language),
-        "english_transcript": result.get("translated_text", transcript),
-        "translation_notes": result.get("notes", ""),
-        "provider": "nvidia_nim_translation",
-        "is_demo": False,
+        "source_language": source_language,
+        "english_transcript": english,
+        "translation_notes": "Demo adapter: transcript passed through untranslated." if demo_passthrough else "",
+        "provider": "demo" if demo_passthrough else "bhashini",
+        "is_demo": demo_passthrough,
     }
 
 
@@ -295,16 +309,16 @@ async def append_recording(
             detail="No speech was recognised in this recording. Please re-record, speaking clearly."
         )
 
-    # Translate new transcript to English
-    translator = get_translation_provider()
+    # Translate new transcript to English (Bhashini; demo passthrough in demo mode)
+    client = get_bhashini_client()
     try:
-        translation = await translator.translate_to_english(new_transcript, detected_lang)
-    except Exception as exc:
-        print(f"[append-recording] translation error ({type(exc).__name__}): {exc}", flush=True)
-        detail = str(exc).strip() or type(exc).__name__
-        raise HTTPException(status_code=502, detail=f"Translation failed: {detail[:400]}") from exc
-
-    english_transcript = translation.get("translated_text", new_transcript)
+        if not client.translation_configured and provider_mode() == "demo":
+            english_transcript = new_transcript
+        else:
+            english_transcript = await client.translate_text(new_transcript, detected_lang, "english")
+    except BhashiniError as exc:
+        print(f"[append-recording] translation error: {exc}", flush=True)
+        raise HTTPException(status_code=502, detail=f"Translation failed: {str(exc)[:400]}") from exc
 
     # Extract symptoms from English transcript
     reasoning_provider = get_reasoning_provider()
@@ -345,241 +359,263 @@ async def append_recording(
     }
 
 
-# Deterministic templates for farmer-facing content in Odia, Hindi, English
-# No LLM translation needed — works 100% reliably
+# ---------------------------------------------------------------------------
+# Farmer-facing localized content (dynamic AI content)
+#
+# The v2 pipeline uses Bhashini translation for EVERY dynamic field (summary
+# lines, precautions, recommendations, urgency explanations). Fixed medical-
+# safety sentences stay deterministic (backend dictionaries) so translation
+# can never weaken or alter them. The English AI analysis remains canonical:
+# switching languages re-translates from English and never re-runs Evon/ASR.
+# ---------------------------------------------------------------------------
 
-LOCALIZED_TEMPLATES = {
+SAFETY_FIXED = {
+    # Fixed safety/urgency text per display language (NOT AI-translated)
     "odia": {
-        "summary": {
-            "animal_type": "ପଶୁ ପ୍ରକାର: {animal_type}",
-            "symptoms": "ଲକ୍ଷଣ: {symptoms}",
-            "duration": "ଅବଧି: {duration}",
-            "feed_water": "ଖାଦ୍ୟ ଓ ପାଣି: {feed_water}",
-            "milk": "କ୍ଷୀର ଉତ୍ପାଦନ: {milk}",
-            "other": "ଅନ୍ୟ ବିବରଣୀ: {other}",
-            "no_symptoms": "କୌଣସି ନିର୍ଦ୍ଦିଷ୍ଟ ଲକ୍ଷଣ ରେକର୍ଡ କରାଯାଇ ନାହିଁ",
-            "not_provided": "ପ୍ରଦାନ କରାଯାଇ ନାହିଁ",
-        },
-        "recommendations": {
-            "title": "ଆପଣ କ’ଣ କରିବେ?",
-            "immediate": "ତୁରନ୍ତ ପଦକ୍ଷେପ: {actions}",
-            "monitor": "ଯାହା ଦେଖିବାକୁ ହେବ: {monitor}",
-            "avoid": "ଯାହା କରନ୍ତୁ ନାହିଁ: ଡାକ୍ତରଙ୍କ ପରାମର୍ଶ ବିନା କୌଣସି ଔଷଧ, ଇଞ୍ଜେକ୍ସନ କିମ୍ବା ଘରୋଇ ଉପଚାର ଦିଅନ୍ତୁ ନାହିଁ",
-            "vet": "ପଶୁଚିକିତ୍ସା ସହାୟତା: {vet_needed}",
-            "urgency": "ଗୁରୁତ୍ୱ: {urgency}",
-            "vet_required": "ହଁ, ପଶୁଚିକିତ୍ସକ ସହାୟତା ଆବଶ୍ୟକ",
-            "vet_review": "ହଁ, ପଶୁଚିକିତ୍ସକ ସମୀକ୍ଷା ଆବଶ୍ୟକ",
-            "vet_monitor": "ପରିଚାଳନା ପାଇଁ ମନିଟରିଂ ଆବଶ୍ୟକ",
-            "urgent": "ତୁରନ୍ତ - ଆପଣଙ୍କ ପଶୁକୁ ତୁରନ୍ତ ପଶୁଚିକିତ୍ସା ଆବଶ୍ୟକ",
-            "review": "ସାଧାରଣ - ପଶୁଚିକିତ୍ସକ ସହ ପରାମର୍ଶ କରନ୍ତୁ",
-            "info": "ସୂଚନା - ଅଧିକ ବିବରଣୀ ଆବଶ୍ୟକ",
-        },
+        "title": "ଆପଣ କ’ଣ କରିବେ?",
+        "avoid": "ଯାହା କରନ୍ତୁ ନାହିଁ: ଡାକ୍ତରଙ୍କ ପରାମର୍ଶ ବିନା କୌଣସି ଔଷଧ, ଇଞ୍ଜେକ୍ସନ କିମ୍ବା ଘରୋଇ ଉପଚାର ଦିଅନ୍ତୁ ନାହିଁ",
+        "vet_required": "ହଁ, ପଶୁଚିକିତ୍ସକ ସହାୟତା ଆବଶ୍ୟକ",
+        "vet_review": "ହଁ, ପଶୁଚିକିତ୍ସକ ସମୀକ୍ଷା ଆବଶ୍ୟକ",
+        "vet_monitor": "ପରିଚାଳନା ପାଇଁ ମନିଟରିଂ ଆବଶ୍ୟକ",
+        "urgent": "ତୁରନ୍ତ - ଆପଣଙ୍କ ପଶୁକୁ ତୁରନ୍ତ ପଶୁଚିକିତ୍ସା ଆବଶ୍ୟକ",
+        "review": "ସାଧାରଣ - ପଶୁଚିକିତ୍ସକ ସହ ପରାମର୍ଶ କରନ୍ତୁ",
+        "info": "ସୂଚନା - ଅଧିକ ବିବରଣୀ ଆବଶ୍ୟକ",
     },
     "hindi": {
-        "summary": {
-            "animal_type": "पशु प्रकार: {animal_type}",
-            "symptoms": "लक्षण: {symptoms}",
-            "duration": "अवधि: {duration}",
-            "feed_water": "खाना-पानी: {feed_water}",
-            "milk": "दूध उत्पादन: {milk}",
-            "other": "अन्य विवरण: {other}",
-            "no_symptoms": "कोई विशिष्ट लक्षण दर्ज नहीं किया गया",
-            "not_provided": "प्रदान नहीं किया गया",
-        },
-        "recommendations": {
-            "title": "आपको क्या करना चाहिए?",
-            "immediate": "तुरंत कार्रवाई: {actions}",
-            "monitor": "क्या देखें: {monitor}",
-            "avoid": "क्या न करें: डॉक्टर की सलाह के बिना कोई दवा, इंजेक्शन या घरेलू उपचार न लें",
-            "vet": "पशु चिकित्सा सहायता: {vet_needed}",
-            "urgency": "गंभीरता: {urgency}",
-            "vet_required": "हां, पशु चिकित्सा सहायता आवश्यक है",
-            "vet_review": "हां, पशु चिकित्सा समीक्षा आवश्यक है",
-            "vet_monitor": "प्रबंधन के लिए निगरानी आवश्यक",
-            "urgent": "तत्काल - आपके पशु को तुरंत पशु चिकित्सा ध्यान देने की आवश्यकता है",
-            "review": "सामान्य - पशु चिकित्सक से परामर्श करें",
-            "info": "सूचना - अधिक जानकारी आवश्यक",
-        },
+        "title": "आपको क्या करना चाहिए?",
+        "avoid": "क्या न करें: डॉक्टर की सलाह के बिना कोई दवा, इंजेक्शन या घरेलू उपचार न लें",
+        "vet_required": "हां, पशु चिकित्सा सहायता आवश्यक है",
+        "vet_review": "हां, पशु चिकित्सा समीक्षा आवश्यक है",
+        "vet_monitor": "प्रबंधन के लिए निगरानी आवश्यक",
+        "urgent": "तत्काल - आपके पशु को तुरंत पशु चिकित्सा ध्यान देने की आवश्यकता है",
+        "review": "सामान्य - पशु चिकित्सक से परामर्श करें",
+        "info": "सूचना - अधिक जानकारी आवश्यक",
     },
     "english": {
-        "summary": {
-            "animal_type": "Animal: {animal_type}",
-            "symptoms": "Symptoms: {symptoms}",
-            "duration": "Duration: {duration}",
-            "feed_water": "Feed & Water: {feed_water}",
-            "milk": "Milk Production: {milk}",
-            "other": "Other Details: {other}",
-            "no_symptoms": "No specific symptoms reported",
-            "not_provided": "Not provided",
-        },
-        "recommendations": {
-            "title": "What should you do?",
-            "immediate": "Immediate Actions: {actions}",
-            "monitor": "What to Monitor: {monitor}",
-            "avoid": "What to Avoid: Do not give any medicines, injections, or home remedies without a vet's advice",
-            "vet": "Veterinary Assistance: {vet_needed}",
-            "urgency": "Urgency: {urgency}",
-            "vet_required": "Yes, veterinary assistance is needed",
-            "vet_review": "Yes, veterinary consultation is needed",
-            "vet_monitor": "Monitoring needed for management",
-            "urgent": "URGENT - Your animal needs immediate veterinary attention",
-            "review": "ROUTINE - Consult a veterinarian",
-            "info": "INFO NEEDED - More information required",
-            "not_provided": "Not provided",
-        },
+        "title": "What should you do?",
+        "avoid": "What to Avoid: Do not give any medicines, injections, or home remedies without a vet's advice",
+        "vet_required": "Yes, veterinary assistance is needed",
+        "vet_review": "Yes, veterinary consultation is needed",
+        "vet_monitor": "Monitoring needed for management",
+        "urgent": "URGENT - Your animal needs immediate veterinary attention",
+        "review": "ROUTINE - Consult a veterinarian",
+        "info": "INFO NEEDED - More information required",
     },
 }
 
 
-def _format_summary(english_report: dict, lang: str) -> str:
-    """Build a formatted summary in the target language using templates.
-    Only shows fields that have actual data — skips 'Not provided' fields.
+def _join(items) -> str:
+    return ", ".join(i for i in items if i)
+
+
+def _compose_english_content(english_report: dict, triage_result: dict) -> dict:
     """
-    t = LOCALIZED_TEMPLATES.get(lang, LOCALIZED_TEMPLATES["english"])["summary"]
-    symptoms = english_report.get("symptoms_reported", [])
-    symptom_list = ", ".join(s.get("value", "") for s in symptoms if s.get("value"))
+    Canonical English farmer-facing content.
 
-    parts = []
-    animal_type = english_report.get("animal_type")
-    if animal_type:
-        parts.append(t["animal_type"].format(animal_type=animal_type))
-    if symptom_list:
-        parts.append(t["symptoms"].format(symptoms=symptom_list))
-    duration = english_report.get("symptom_duration")
-    if duration and duration != "Not provided":
-        parts.append(t["duration"].format(duration=duration))
-    feed_water = english_report.get("eating_or_drinking_change")
-    if feed_water and feed_water != "Not provided":
-        parts.append(t["feed_water"].format(feed_water=feed_water))
-    milk = english_report.get("milk_production_change")
-    if milk and milk != "Not provided":
-        parts.append(t["milk"].format(milk=milk))
-    if english_report.get("other_observations"):
-        parts.append(t["other"].format(other=", ".join(english_report["other_observations"])))
-
-    if not parts:
-        parts.append(t["no_symptoms"])
-
-    return "\n".join(parts)
-
-
-def _format_recommendations(english_report: dict, triage_result: dict, lang: str) -> str:
-    """Build formatted recommendations in the target language using templates.
-    Uses bullet points (•) instead of paragraph style.
+    The summary is a natural-language paragraph built ONLY from what the
+    farmer actually reported (Evon's factual case_summary). Structured
+    clinical details live in separate lists and are clearly AI-extractions.
+    Never calls Evon; language switches are cheap.
     """
-    t = LOCALIZED_TEMPLATES.get(lang, LOCALIZED_TEMPLATES["english"])["recommendations"]
+    e = english_report or {}
+    t = triage_result or {}
 
-    urgency = triage_result.get("urgency_level", "review")
-    urgency_map = {
-        "urgent": t["urgent"],
-        "review": t["review"],
-        "info_needed": t["info"],
-    }
-    vet_map = {
-        "urgent": t["vet_required"],
-        "review": t["vet_review"],
-        "info_needed": t["vet_monitor"],
-    }
+    # Natural summary paragraph: ONLY farmer statements, no field labels,
+    # no AI-inferred extras. Preferred source is Evon's factual case_summary
+    # ("what the farmer reported"); fallback is the English translation of
+    # the farmer's own words (farmer_statement), which is likewise only what
+    # the farmer said.
+    summary_text = str(e.get("case_summary") or "").strip()
+    if not summary_text:
+        summary_text = str(e.get("farmer_statement") or "").strip()
+    # Trim meta prefixes some models echo
+    summary_text = re.sub(
+        r"^what the farmer reports? (that )?[:,-]?\s*",
+        "", summary_text, flags=re.IGNORECASE)
+    summary_text = re.sub(
+        r"^(farmer reports?|the farmer reports?) (that )?",
+        "", summary_text, flags=re.IGNORECASE)
+    summary_text = summary_text.strip()
 
-    immediate_actions = triage_result.get("immediate_actions", [])
-    actions_text = "; ".join(immediate_actions) if immediate_actions else t["not_provided"]
-
-    monitor_text = "Observe the animal for changes in breathing, appetite, and behavior. Contact a vet if symptoms worsen."
-
-    lines = [
-        f"• {t['title']}",
-        f"• {t['immediate']}".format(actions=actions_text),
-        f"• {t['monitor']}".format(monitor=monitor_text),
-        f"• {t['avoid']}",
-        f"• {t['vet']}".format(vet_needed=vet_map.get(urgency, t["vet_review"])),
-        f"• {t['urgency']}".format(urgency=urgency_map.get(urgency, t["review"])),
+    symptoms = [
+        s.get("value", "") for s in (e.get("symptoms_reported") or [])
+        if isinstance(s, dict) and s.get("value")
     ]
+    precautions = [i for i in (e.get("immediate_precautions") or []) if str(i).strip()]
+    recommendations = [i for i in (e.get("recommendations") or []) if str(i).strip()]
+    if not recommendations:
+        recommendations = [i for i in (t.get("immediate_actions") or []) if str(i).strip()]
+    urgency_reasons = [i for i in (t.get("urgency_reasons") or e.get("urgency_reasons") or []) if str(i).strip()]
+    causes = [i for i in (e.get("possible_causes") or []) if str(i).strip()]
+    questions = [i for i in (e.get("follow_up_questions") or []) if str(i).strip()]
 
-    return "\n".join(lines)
+    urgency_raw = str(t.get("urgency_level") or e.get("urgency_level") or "review").lower()
+    triage_code = {
+        "emergency": "urgent",
+        "urgent": "urgent",
+        "routine": "review",
+        "review": "review",
+        "info_needed": "info_needed",
+    }.get(urgency_raw, "review")
+
+    return {
+        "summary_text": summary_text,
+        "symptoms": symptoms,
+        "precautions": precautions,
+        "recommendations": recommendations,
+        "urgency_reasons": urgency_reasons,
+        "possible_causes": causes,
+        "follow_up_questions": questions,
+        "triage_code": triage_code,
+    }
+
+
+_localized_content_cache: dict = {}
+_LOCALIZED_CACHE_MAX = 300
+
+
+def _cache_key(english: dict, target: str) -> str:
+    blob = repr(_compose_english_content(english, {})) + "|" + target
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
 @router.post("/cases/generate-localized-content")
 async def generate_localized_content(payload: dict):
     """
-    Generate localized summary and recommendations for the farmer
-    from the English operator report and triage result.
-    Uses deterministic templates — no LLM translation needed, works 100% reliably.
+    Translate the farmer-facing dynamic content (canonical English) into the
+    selected display language using Bhashini. Fixed medical-safety sentences
+    come from the backend dictionary so they can never be altered by NMT.
+    The English analysis is never recomputed (no Evon call here).
     """
-    english_report = payload.get("english_report", {})
-    triage_result = payload.get("triage_result", {})
-    target_language = payload.get("target_language", "odia")
+    english_report = payload.get("english_report") or {}
+    triage_result = payload.get("triage_result") or {}
+    target = (payload.get("target_language") or "english").lower()
+    if target not in ("odia", "hindi", "english"):
+        target = "english"
 
-    if not english_report:
-        raise HTTPException(status_code=400, detail="English report is required.")
+    composed = _compose_english_content(english_report, triage_result)
+    triage_code = composed["triage_code"]
+    t = SAFETY_FIXED.get(target, SAFETY_FIXED["english"])
 
-    localized_summary = _format_summary(english_report, target_language)
-    localized_recommendations = _format_recommendations(english_report, triage_result, target_language)
+    vet_map = {"urgent": t["vet_required"], "review": t["vet_review"], "info_needed": t["vet_monitor"]}
+    urgency_map = {"urgent": t["urgent"], "review": t["review"], "info_needed": t["info"]}
 
-    return {
-        "target_language": target_language,
+    # Every dynamic string is translated individually so the frontend can
+    # render each item as its own element (numbered steps, badge chips...).
+    dynamic = (
+        ([composed["summary_text"]] if composed["summary_text"] else [])
+        + composed["symptoms"]
+        + composed["precautions"]
+        + composed["recommendations"]
+        + composed["urgency_reasons"]
+        + composed["possible_causes"]
+        + composed["follow_up_questions"]
+    )
+    dynamic = [d for d in dynamic if d and str(d).strip()]
+
+    if target == "english":
+        translated = list(dynamic)
+        demo_passthrough = False
+    else:
+        client = get_bhashini_client()
+        demo_passthrough = (
+            not client.translation_configured and provider_mode() == "demo"
+        )
+        if demo_passthrough:
+            # Demo adapter (no Bhashini configured): pass content through
+            # untranslated and flag it — nothing pretends to be translated.
+            translated = list(dynamic)
+        elif client.translation_configured:
+            key = _cache_key(english_report, target)
+            cached = _localized_content_cache.get(key)
+            if cached is not None:
+                hit = dict(cached)
+                hit["cached"] = True
+                return hit
+            try:
+                translated = await client.translate_texts(dynamic, "english", target)
+            except BhashiniError as exc:
+                print(f"[generate-localized-content] bhashini error: {exc}", flush=True)
+                raise HTTPException(status_code=502, detail=f"Translation failed: {str(exc)[:400]}") from exc
+            except Exception as exc:
+                raise HTTPException(status_code=502, detail=f"Translation failed: {type(exc).__name__}") from exc
+        else:
+            raise HTTPException(status_code=503, detail="Translation service is not configured.")
+
+    idx = 0
+    def take(n):
+        nonlocal idx
+        part = translated[idx:idx + n]
+        idx += n
+        return part
+
+    n_summary = 1 if composed["summary_text"] else 0
+    summary_t = take(n_summary)
+    symptoms_t = take(len(composed["symptoms"]))
+    precautions_t = take(len(composed["precautions"]))
+    recommendations_t = take(len(composed["recommendations"]))
+    reasons_t = take(len(composed["urgency_reasons"]))
+    causes_t = take(len(composed["possible_causes"]))
+    questions_t = take(len(composed["follow_up_questions"]))
+
+    localized_summary = summary_t[0] if summary_t else ""
+
+    # Every item is its own step (rendered as a numbered list by the UI)
+    steps_t = recommendations_t
+    if not steps_t and triage_code == "urgent":
+        steps_t = [vet_map[triage_code]]
+
+    response = {
         "localized_summary": localized_summary,
-        "summary_notes": "Generated using deterministic templates",
-        "localized_recommendations": localized_recommendations,
-        "recommendations_notes": "Generated using deterministic templates",
+        "localized_symptoms": symptoms_t,
+        "localized_precautions": precautions_t,
+        "localized_recommendations": steps_t,
+        "localized_urgency_reasons": reasons_t,
+        "localized_possible_causes": causes_t,
+        "localized_followup_questions": questions_t,
+        # Fixed medical-safety sentences (never AI-translated)
+        "fixed": {
+            "what_to_do": t["title"],
+            "avoid": t["avoid"],
+            "vet_line": vet_map[triage_code],
+            "urgency_line": urgency_map[triage_code],
+        },
+        "urgency_level": triage_code,
+        "target_language": target,
+        "provider": "demo" if demo_passthrough else "bhashini",
+        "is_demo": demo_passthrough,
+        "cached": False,
     }
-
-
-from unidecode import unidecode
-
-
-def transliterate_to_roman(text: str, language: str) -> str:
-    """Transliterate Devanagari/Odia text to Roman script for TTS fallback."""
-    if language not in ("hindi", "odia"):
-        return text
-    # unidecode converts Unicode text to best-effort ASCII representation
-    roman = unidecode(text)
-    # Strip punctuation that Gnani Timbre may not handle well
-    roman = "".join(ch for ch in roman if ch.isalnum() or ch.isspace())
-    return roman.strip()
+    key = _cache_key(english_report, target)
+    _localized_content_cache[key] = response
+    if len(_localized_content_cache) > _LOCALIZED_CACHE_MAX:
+        _localized_content_cache.clear()
+    return response
 
 
 @router.post("/tts/generate", response_model=TTSGenerateResponse)
 async def generate_tts(payload: TTSGenerateRequest):
     """
-    Generate selected-language TTS audio for voice confirmation.
-    Uses Gnani Timbre (live only). For Hindi/Odia, if Gnani Timbre cannot
-    synthesize non-Latin script text, falls back to Roman-script
-    transliteration with English language code so the farmer still hears
-    the confirmation in their language.
+    Generate selected-language speech via Bhashini TTS (Odia, Hindi,
+    English). No transliteration hacks are needed anymore: Bhashini handles
+    native scripts.
     """
     text = (payload.text or "").strip()
     language = (payload.language or "odia").lower()
+    if language not in ("odia", "hindi", "english"):
+        language = "odia"
     if not text:
         raise HTTPException(status_code=400, detail="Text is required for TTS generation.")
 
     provider = get_voice_provider()
-    tried_fallback = False
-    roman_text = text
     try:
         audio_bytes = await provider.synthesize(text, language=language)
+    except BhashiniError as exc:
+        print(f"[tts] bhashini error: {exc}", flush=True)
+        raise HTTPException(status_code=502, detail=f"TTS generation failed: {str(exc)[:400]}") from exc
     except Exception as exc:
-        # If the provider cannot synthesize non-Latin script (e.g. Gnani Timbre
-        # returns 500 "No audio generated during synthesis"), fall back to
-        # Roman-script transliteration with English language code.
-        if language in ("hindi", "odia") and ("500" in str(exc) or "No audio generated" in str(exc)):
-            tried_fallback = True
-            roman_text = transliterate_to_roman(text, language)
-            if not roman_text.strip():
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"TTS transliteration produced empty text for language={language}"
-                )
-            try:
-                audio_bytes = await provider.synthesize(roman_text, language="english")
-            except Exception as exc2:
-                detail = str(exc2).strip() or type(exc2).__name__
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"TTS generation failed (original: {str(exc).strip()[:200]}; fallback: {detail[:200]})"
-                ) from exc2
-        else:
-            detail = str(exc).strip() or type(exc).__name__
-            raise HTTPException(status_code=502, detail=f"TTS generation failed: {detail[:400]}") from exc
+        detail = str(exc).strip() or type(exc).__name__
+        raise HTTPException(status_code=502, detail=f"TTS generation failed: {detail[:400]}") from exc
 
     os.makedirs(settings.AUDIO_STORAGE_PATH, exist_ok=True)
     storage_name = f"tts_{uuid.uuid4().hex[:12]}.wav"
@@ -591,9 +627,8 @@ async def generate_tts(payload: TTSGenerateRequest):
     return {
         "audio_object_key": storage_name,
         "audio_url": f"/api/audio/{storage_name}",
-        "text": text if not tried_fallback else roman_text,
-        "language": "english" if tried_fallback else language,
-        "transliterated": tried_fallback,
+        "text": text,
+        "language": language,
     }
 
 
@@ -612,6 +647,14 @@ async def enforce_transcript_language(payload: dict):
         raise HTTPException(status_code=400, detail="Transcript is empty.")
 
     enforcement = await ensure_selected_language(transcript, language)
+    if (
+        enforcement["language_enforcement"] == "unverified"
+        and provider_mode() == "demo"
+    ):
+        # Demo adapter: no Bhashini translation available, accept as-is and
+        # flag clearly so nothing pretends to be a real translation.
+        enforcement["language_enforcement"] = "verified_match"
+        enforcement["is_demo"] = True
     if enforcement["language_enforcement"] not in ("verified_match", "translated"):
         shown_lang = enforcement.get("transcript_language") or "unknown"
         raise HTTPException(
@@ -645,7 +688,7 @@ async def extract_symptoms(payload: dict):
         if settings.AI_PROVIDER_MODE == "live":
             detail = str(e).strip() or type(e).__name__
             raise HTTPException(status_code=502, detail=f"Live symptom extraction failed: {detail[:400]}") from e
-        from app.services.gnani.demo_providers import DemoReasoningProvider
+        from app.services.demo_providers import DemoReasoningProvider
         fallback = DemoReasoningProvider()
         res = await fallback.extract_case(transcript, {"animal_type": animal_type, "language": language, "input_mode": input_mode})
         res["note"] = f"Live extraction error ({str(e)}). Returned DEMO extraction."

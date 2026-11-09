@@ -5,5 +5,4 @@ httpx==0.28.1
 python-multipart==0.0.33
 SQLAlchemy[asyncio]==2.1.8
 greenlet==3.5.6
-unidecode==1.4.0
 uvicorn[standard]==0.54.0

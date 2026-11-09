@@ -7,7 +7,7 @@
 
 ## 🌟 Overview
 
-JeevSetu empowers rural farmers in Odisha and across India to report animal health concerns in their own natural spoken language (**Odia-first**, **Hindi**, and **natural code-mixed speech**). Spoken descriptions are transcribed and structured using **Gnani AI** (`Prisma v3.0` speech-to-text, `Evon v3.3` clinical extraction, and `Timbre v3.0` voice synthesis), evaluated against deterministic **veterinarian-approved triage safety rules**, and routed to a dedicated **Veterinary Operations Console** with geolocation, full audio transcripts, and referral tracking.
+JeevSetu empowers rural farmers in Odisha and across India to report animal health concerns in their own natural spoken language (**Odia-first**, **Hindi**, and **English**). Spoken descriptions are transcribed by **Bhashini** (ASR), translated to English, analysed by **Evon v3.3** (structured clinical intake), and every farmer-facing response is translated back through **Bhashini** into the farmer's selected language, evaluated against deterministic **veterinarian-approved triage safety rules**, and routed to a dedicated **Veterinary Operations Console** with geolocation, full audio transcripts, and referral tracking.
 
 ---
 
@@ -24,7 +24,7 @@ JeevSetu empowers rural farmers in Odisha and across India to report animal heal
 | Component | Port | Technology | Purpose |
 |---|---|---|---|
 | **Frontend** | `http://127.0.0.1:5173` | React 19, TypeScript, Vite 8, Tailwind CSS, Leaflet | Mobile-first farmer flow & operator console |
-| **Backend API** | `http://127.0.0.1:8000` | FastAPI, Python 3.12, SQLAlchemy 2.0, SQLite | Triage engine, Gnani adapters, REST APIs |
+| **Backend API** | `http://127.0.0.1:8000` | FastAPI, Python 3.12, SQLAlchemy 2.0, SQLite | Triage engine, Bhashini + Evon adapters, REST APIs |
 | **API Docs** | `http://127.0.0.1:8000/docs` | Swagger / OpenAPI | Interactive API documentation |
 
 ---
@@ -48,7 +48,35 @@ JeevSetu empowers rural farmers in Odisha and across India to report animal heal
 - **Case Detail (`/operator/cases/:id`)**: Split-screen case review with original audio player, transcript, red-flag triggers, audit history, and vet assignment.
 - **Veterinary Directory (`/operator/vets`)**: Interactive Leaflet map and directory of Block Veterinary Dispensaries and Mobile Units across Odisha.
 - **Intake Reports (`/operator/reports`)**: Aggregated analytics strictly derived from stored cases.
-- **System Settings (`/operator/settings`)**: Gnani AI connection status and safety engine audit info.
+- **System Settings (`/operator/settings`)**: Bhashini + Evon connection status and safety engine audit info.
+
+---
+
+## 🔐 Environment Variables (backend `/backend/.env`)
+
+See `.env.example` for the full annotated list. All third-party credentials are server-side only — never in the frontend.
+
+```env
+# Evon v3.3 (analysis) — OpenAI-compatible chat completions, Bearer auth
+EVON_API_URL=          # e.g. https://<your-host>/v1/chat/completions (configurable endpoint)
+EVON_API_KEY=
+EVON_MODEL=evon-v3.3
+EVON_TIMEOUT=300       # Evon inference is slow; keep a generous timeout
+
+# Bhashini (ASR / translation / TTS) — account-specific compute URLs
+BHASHINI_API_KEY=
+BHASHINI_ASR_URL=
+BHASHINI_TRANSLATION_URL=
+BHASHINI_TTS_URL=      # optional
+BHASHINI_ASR_PIPELINE_ID=           # optional, only if your account requires it
+BHASHINI_TRANSLATION_PIPELINE_ID=
+BHASHINI_TTS_PIPELINE_ID=
+
+# Provider mode: "live" when credentials exist, "demo" otherwise
+AI_PROVIDER_MODE=demo
+```
+
+Supported languages: Odia (`or`), Hindi (`hi`), English (`en`). Bhashini compute URLs are account/pipeline-specific — copy them from your Bhashini portal; do not invent values. No temporary tunnel URLs should be committed as production endpoints.
 
 ---
 

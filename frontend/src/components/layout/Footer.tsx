@@ -32,7 +32,7 @@ export const Footer: React.FC = () => {
             </p>
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-white border border-[#E2E7DF] text-[11px] text-[#647168]">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Gnani AI Stack (Prisma STT + Evon Reasoning + Timbre TTS)
+              AI Stack (Bhashini ASR/NMT/TTS + Evon v3.3 Reasoning)
             </div>
           </div>
 

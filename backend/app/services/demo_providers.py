@@ -1,5 +1,5 @@
 import random
-from app.services.gnani.base import SpeechProvider, ReasoningProvider, VoiceProvider
+from app.services.provider_base import SpeechProvider, ReasoningProvider, VoiceProvider
 
 class DemoSpeechProvider(SpeechProvider):
     """

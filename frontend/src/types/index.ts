@@ -31,8 +31,18 @@ export interface SymptomExtraction {
   other_observations: string[];
   unknown_fields: string[];
   requires_human_review: boolean;
+  urgency_level?: string;
   provider?: string;
   is_demo?: boolean;
+  /** Evon v3.3 structured analysis extras */
+  case_summary?: string;
+  animal_information?: Record<string, unknown>;
+  possible_causes?: string[];
+  immediate_precautions?: string[];
+  recommendations?: string[];
+  missing_information?: string[];
+  follow_up_questions?: string[];
+  is_confirmed_diagnosis?: boolean;
 }
 
 export interface CaseStatusHistory {
@@ -132,6 +142,47 @@ export interface FarmerReportDraft {
   localized_summary?: string;
   /** Localized recommended actions in the farmer's selected language. */
   localized_recommendations?: string;
+  /** Canonical English AI analysis (never re-run on language switch). */
+  english_canonical_report?: {
+    case_summary?: string;
+    animal_type?: string;
+    animal_information?: Record<string, unknown>;
+    symptoms_reported?: SymptomItem[];
+    symptom_duration?: string;
+    eating_or_drinking_change?: string;
+    milk_production_change?: string;
+    other_observations?: string[];
+    possible_causes?: string[];
+    urgency_level?: string;
+    urgency_reasons?: string[];
+    immediate_precautions?: string[];
+    recommendations?: string[];
+    missing_information?: string[];
+    follow_up_questions?: string[];
+  };
+  /** Cached Bhashini translations keyed by display language (case + lang). */
+  localized_content_cache?: Record<string, {
+    /** Natural-language summary paragraph (only farmer-reported info). */
+    localized_summary: string;
+    /** AI-extracted symptoms, translated individually. */
+    localized_symptoms?: string[];
+    /** Immediate precautions, translated individually. */
+    localized_precautions?: string[];
+    /** Individual action steps, translated individually. */
+    localized_recommendations?: string[];
+    localized_urgency_reasons?: string[];
+    localized_possible_causes?: string[];
+    localized_followup_questions?: string[];
+    /** Fixed medical-safety sentences (NOT AI-translated). */
+    fixed?: {
+      what_to_do: string;
+      avoid: string;
+      vet_line: string;
+      urgency_line: string;
+    };
+    urgency_level?: string;
+    cached?: boolean;
+  }>;
   /** Whether the farmer explicitly confirmed the understood report. */
   farmer_confirmed?: boolean;
   /** Confirmation status: pending | confirmed | rejected. */

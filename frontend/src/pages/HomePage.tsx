@@ -130,7 +130,7 @@ export const HomePage: React.FC = () => {
               {language === 'odia' ? '୨. AI ବିଶ୍ଳେଷଣ ଓ ସୁରକ୍ଷା ଯାଞ୍ଚ' : language === 'hindi' ? '२. AI विश्लेषण व सुरक्षा जांच' : 'Structured Intake & Triage'}
             </h3>
             <p className="text-xs sm:text-sm text-[#647168] leading-relaxed">
-              Gnani Prisma and Evon convert spoken audio to structured symptoms. Deterministic red flags highlight emergencies.
+              Bhashini converts spoken audio to text and Evon v3.3 analyses symptoms. Deterministic red flags highlight emergencies.
             </p>
           </div>
 

@@ -9,12 +9,11 @@ class SpeechProvider(ABC):
 class ReasoningProvider(ABC):
     @abstractmethod
     async def extract_case(self, transcript: str, animal_context: dict) -> dict:
-        """Extract structured clinical symptoms from transcript and context."""
+        """Extract the structured clinical case from a transcript with context."""
         pass
 
 class VoiceProvider(ABC):
     @abstractmethod
-    async def synthesize(self, text: str, language: str = "hi-IN") -> bytes:
+    async def synthesize(self, text: str, language: str = "odia") -> bytes:
         """Synthesize spoken audio from text."""
         pass
-

@@ -166,7 +166,7 @@ export const ReportVoicePage: React.FC = () => {
         return;
       }
 
-      // Transcribe via API (Prisma / Demo)
+      // Transcribe via API (Bhashini / Demo)
       const res = await uploadAndTranscribeAudio(wavAudio.blob, language);
 
       // The backend verifies the transcript is in the selected language and

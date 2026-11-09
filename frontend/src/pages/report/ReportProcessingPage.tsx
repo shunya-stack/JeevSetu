@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import {
@@ -8,7 +8,7 @@ import {
   enforceLanguageAPI,
   generateLocalizedContentAPI,
 } from '../../lib/api';
-import { CheckCircle2, Loader2, Sparkles, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Loader2, Sparkles, AlertTriangle, RotateCcw } from 'lucide-react';
 
 export const ReportProcessingPage: React.FC = () => {
   const { t, draft, updateDraft, language } = useLanguage();
@@ -16,6 +16,11 @@ export const ReportProcessingPage: React.FC = () => {
 
   const [activeStep, setActiveStep] = useState(1);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
+  const [canRetryLocalized, setCanRetryLocalized] = useState(false);
+
+  // Canonical English analysis + triage kept in refs so a Bhashini failure
+  // can be retried WITHOUT re-running ASR or Evon.
+  const reportRef = useRef<{ englishReport: any; triageResult: any } | null>(null);
 
   // Pipeline step titles
   const steps = [
@@ -55,6 +60,65 @@ export const ReportProcessingPage: React.FC = () => {
     return merged;
   };
 
+  // Build the canonical English report (kept as-is across language switches)
+  const buildEnglishReport = (extraction: any): any => ({
+    case_summary: extraction.case_summary || '',
+    animal_type: draft.animal_type || extraction.animal_type || 'cow',
+    animal_information: extraction.animal_information || { animal_type: draft.animal_type || 'cow' },
+    symptoms_reported: extraction.symptoms_reported || [],
+    symptom_duration: extraction.symptom_duration || 'Not provided',
+    eating_or_drinking_change: extraction.eating_or_drinking_change || 'Not provided',
+    milk_production_change: extraction.milk_production_change || 'Not provided',
+    other_observations: extraction.other_observations || [],
+    possible_causes: extraction.possible_causes || [],
+    urgency_level: extraction.urgency_level,
+    urgency_reasons: extraction.urgency_reasons || [],
+    immediate_precautions: extraction.immediate_precautions || [],
+    recommendations: extraction.recommendations || [],
+    missing_information: extraction.missing_information || [],
+    follow_up_questions: extraction.follow_up_questions || [],
+    farmer_statement: draft.english_operator_transcript || '',
+  });
+
+  // Translate canonical content into the current display language via Bhashini.
+  // Language switches reuse this exact function; Evon is NEVER re-run.
+  const localizeForLanguage = async (targetLanguage: string) => {
+    const { englishReport, triageResult } = reportRef.current!;
+    const existingCache: Record<string, any> = draft.localized_content_cache || {};
+
+    // Stale entries (pre-structured shape) are treated as a miss so the
+    // farmer never sees mixed old/new content.
+    const cachedEntry = existingCache[targetLanguage];
+    if (targetLanguage !== 'english' && cachedEntry && Array.isArray(cachedEntry.localized_symptoms)) {
+      // Cache hit → immediate render, zero Bhashini calls
+      updateDraft({
+        localized_summary: cachedEntry.localized_summary,
+        localized_recommendations: (cachedEntry.localized_recommendations || []).join('\n'),
+      });
+      return cachedEntry;
+    }
+
+    const res = await generateLocalizedContentAPI(englishReport, triageResult, targetLanguage);
+    const entry = {
+      localized_summary: res.localized_summary || '',
+      localized_symptoms: res.localized_symptoms || [],
+      localized_precautions: res.localized_precautions || [],
+      localized_recommendations: res.localized_recommendations || [],
+      localized_urgency_reasons: res.localized_urgency_reasons || [],
+      localized_possible_causes: res.localized_possible_causes || [],
+      localized_followup_questions: res.localized_followup_questions || [],
+      fixed: res.fixed || undefined,
+      urgency_level: res.urgency_level,
+      cached: false,
+    };
+    updateDraft({
+      localized_content_cache: { ...existingCache, [targetLanguage]: entry },
+      localized_summary: entry.localized_summary,
+      localized_recommendations: (res.localized_recommendations || []).join('\n'),
+    });
+    return entry;
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -72,7 +136,7 @@ export const ReportProcessingPage: React.FC = () => {
         let detectedLanguage = draft.transcript_language || language;
 
         // If we don't have an original-language transcript yet (e.g. typed text),
-        // enforce the current language selection
+        // detect and/or translate it into the selected display language
         if (!draft.original_transcript && transcriptForPipeline) {
           const reEnforced = await enforceLanguageAPI(transcriptForPipeline, language);
           transcriptForPipeline = reEnforced.transcript;
@@ -88,25 +152,21 @@ export const ReportProcessingPage: React.FC = () => {
 
         await new Promise((r) => setTimeout(r, 700));
 
-        // ── Step 3: Translate to English for the operator ───────────
+        // ── Step 3: Bhashini translation of the transcript to English ──
         setActiveStep(3);
         const translation = await translateToEnglishAPI(transcriptForPipeline, detectedLanguage);
-
         const englishTranscript = translation.english_transcript || transcriptForPipeline;
 
-        // Append to English operator transcript if Record More
         const existingEnglishTranscript = draft.english_operator_transcript || "";
         const mergedEnglishTranscript = existingEnglishTranscript
           ? `${existingEnglishTranscript} ${englishTranscript}`
           : englishTranscript;
 
-        updateDraft({
-          english_operator_transcript: mergedEnglishTranscript,
-        });
+        updateDraft({ english_operator_transcript: mergedEnglishTranscript });
 
         await new Promise((r) => setTimeout(r, 700));
 
-        // ── Step 4: Symptom extraction from English transcript ──────
+        // ── Step 4: Evon v3.3 analysis of the ENGLISH transcript ────
         setActiveStep(4);
         const extraction = await extractSymptomsFromEnglishAPI(
           englishTranscript,
@@ -115,12 +175,19 @@ export const ReportProcessingPage: React.FC = () => {
           draft.input_mode || "voice"
         );
 
-        // Merge symptoms with existing extraction (Record More support)
+        // Merge with existing extraction (Record More support)
         const existingExt = draft.symptom_extraction;
         const mergedExtraction = {
           ...extraction,
           animal_type: draft.animal_type || extraction.animal_type || "cow",
           language: "english",
+          case_summary: extraction.case_summary || existingExt?.case_summary || '',
+          possible_causes: extraction.possible_causes || existingExt?.possible_causes || [],
+          immediate_precautions: extraction.immediate_precautions || existingExt?.immediate_precautions || [],
+          recommendations: extraction.recommendations || existingExt?.recommendations || [],
+          missing_information: extraction.missing_information || existingExt?.missing_information || [],
+          follow_up_questions: extraction.follow_up_questions || existingExt?.follow_up_questions || [],
+          animal_information: extraction.animal_information || existingExt?.animal_information || {},
           symptoms_reported: mergeSymptoms(
             existingExt?.symptoms_reported || [],
             extraction.symptoms_reported || []
@@ -131,14 +198,14 @@ export const ReportProcessingPage: React.FC = () => {
           ),
           unknown_fields: mergeStringLists(
             existingExt?.unknown_fields,
-            extraction.unknown_fields
+            extraction.missing_information
           ),
           symptom_duration: extraction.symptom_duration || existingExt?.symptom_duration || 'Not provided',
           eating_or_drinking_change: extraction.eating_or_drinking_change || existingExt?.eating_or_drinking_change || 'Not provided',
           milk_production_change: extraction.milk_production_change || existingExt?.milk_production_change || 'Not provided',
         };
 
-        // ── Step 5: Triage evaluation ───────────────────────────────
+        // ── Step 5: Deterministic triage (unchanged safety engine) ───
         setActiveStep(5);
         const triageRes = await evaluateTriageAPI(
           mergedEnglishTranscript,
@@ -147,51 +214,38 @@ export const ReportProcessingPage: React.FC = () => {
           mergedExtraction.symptom_duration
         );
 
-        if (isMounted) {
-          updateDraft({
-            transcript: mergedEnglishTranscript,
-            symptom_extraction: mergedExtraction,
-            urgency_level: triageRes.urgency_level,
-            urgency_reasons: triageRes.urgency_reasons,
-            immediate_actions: triageRes.immediate_actions,
-          });
+        if (!isMounted) return;
 
-          // ── Step 6: Generate localized summary and recommendations ──────
-          setActiveStep(6);
-          try {
-            const englishReport = {
-              animal_type: mergedExtraction.animal_type || draft.animal_type || 'cow',
-              symptoms_reported: mergedExtraction.symptoms_reported || [],
-              symptom_duration: mergedExtraction.symptom_duration || 'Not provided',
-              eating_or_drinking_change: mergedExtraction.eating_or_drinking_change || 'Not provided',
-              milk_production_change: mergedExtraction.milk_production_change || 'Not provided',
-              other_observations: mergedExtraction.other_observations || [],
-              unknown_fields: mergedExtraction.unknown_fields || [],
-            };
-            const triageResult = {
-              urgency_level: triageRes.urgency_level,
-              urgency_reasons: triageRes.urgency_reasons,
-              immediate_actions: triageRes.immediate_actions,
-            };
+        const englishReport = buildEnglishReport(mergedExtraction);
+        const triageResult = {
+          urgency_level: triageRes.urgency_level,
+          urgency_reasons: triageRes.urgency_reasons,
+          immediate_actions: triageRes.immediate_actions,
+        };
+        reportRef.current = { englishReport, triageResult };
 
-            const res = await generateLocalizedContentAPI(
-              englishReport,
-              triageResult,
-              language
-            );
+        updateDraft({
+          transcript: mergedEnglishTranscript,
+          symptom_extraction: mergedExtraction,
+          english_canonical_report: englishReport,
+          urgency_level: triageRes.urgency_level,
+          urgency_reasons: triageRes.urgency_reasons,
+          immediate_actions: triageRes.immediate_actions,
+        });
 
-            updateDraft({
-              localized_summary: res.localized_summary || '',
-              localized_recommendations: res.localized_recommendations || '',
-            });
-          } catch (locErr: any) {
-            console.error("Localized content generation failed:", locErr);
-            // Continue without localized content
-          }
-
-          await new Promise((r) => setTimeout(r, 500));
-          navigate('/report/review');
+        // ── Step 6: Bhashini translation into the display language ──
+        setActiveStep(6);
+        try {
+          await localizeForLanguage(language);
+        } catch (err: any) {
+          console.error("Localized content generation failed:", err);
+          setErrorNotice(err?.message || 'Translation failed. Your report is safe — please retry.');
+          setCanRetryLocalized(true);
+          return; // report data is preserved; the farmer can retry
         }
+
+        await new Promise((r) => setTimeout(r, 500));
+        navigate('/report/review');
       } catch (err: any) {
         console.error("Pipeline processing failed:", err);
         if (isMounted) {
@@ -205,7 +259,22 @@ export const ReportProcessingPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const retryLocalized = async () => {
+    if (!reportRef.current) return;
+    // Retry ONLY the Bhashini translation step — never Evon or ASR
+    setErrorNotice(null);
+    setCanRetryLocalized(false);
+    try {
+      await localizeForLanguage(language);
+      navigate('/report/review');
+    } catch (err: any) {
+      setErrorNotice(err?.message || 'Translation failed. Your report is safe — please retry.');
+      setCanRetryLocalized(true);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F7F7F0] flex items-center justify-center p-4">
@@ -262,17 +331,30 @@ export const ReportProcessingPage: React.FC = () => {
         </div>
 
         <p className="text-[11px] text-[#647168] pt-2">
-          Speech is transcribed in your spoken language, translated to English
-          for the veterinarian, then read back to you for confirmation.
+          Speech is recognised in your language by Bhashini, translated to English,
+          analysed by Evon, then translated back for you.
         </p>
 
         {errorNotice && (
-          <div role="alert" className="rounded-2xl border border-[#B83A35]/30 bg-[#FCE9E7] p-3.5 text-left text-xs text-[#B83A35]">
-            {errorNotice}
+          <div role="alert" className="rounded-2xl border border-[#B83A35]/30 bg-[#FCE9E7] p-3.5 text-left text-xs text-[#B83A35] space-y-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{errorNotice}</span>
+            </div>
+            {canRetryLocalized && (
+              <button
+                type="button"
+                onClick={retryLocalized}
+                className="w-full rounded-xl bg-[#B83A35] py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#8F2D28] flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Retry translation
+              </button>
+            )}
           </div>
         )}
 
-        {errorNotice && (
+        {errorNotice && !canRetryLocalized && (
           <button
             type="button"
             onClick={() => navigate('/report/voice')}

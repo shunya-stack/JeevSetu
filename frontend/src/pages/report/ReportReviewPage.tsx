@@ -67,7 +67,7 @@ export const ReportReviewPage: React.FC = () => {
                 {t('review_transcript_label')}
               </label>
               <span className="text-[11px] font-semibold text-[#174B35] bg-[#E2EEE5] px-2 py-0.5 rounded-md">
-                {draft.language_translated ? `Auto-translated to selected language (${draft.transcript_language || 'original speech'})` : 'Gnani Speech Output'}
+                {draft.language_translated ? `Auto-translated to selected language (${draft.transcript_language || 'original speech'})` : 'Bhashini Speech Output'}
               </span>
             </div>
             <textarea

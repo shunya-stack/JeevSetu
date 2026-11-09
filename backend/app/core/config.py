@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+
 from pydantic import BaseModel
 
 def load_local_env() -> None:
@@ -25,31 +26,40 @@ class Settings(BaseModel):
         origin.strip()
         for origin in os.getenv(
             "CORS_ORIGINS",
-            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://localhost:8000,https://jeevsetu-one.vercel.app"
+            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://localhost:8000"
         ).split(",")
         if origin.strip()
     ]
-    
-    # Gnani Configuration
-    GNANI_API_KEY: str = os.getenv("GNANI_API_KEY", "")
-    GNANI_API_BASE_URL: str = os.getenv("GNANI_API_BASE_URL", "https://api.vachana.ai")
-    GNANI_PRISMA_MODEL: str = os.getenv("GNANI_PRISMA_MODEL", "prisma-v3.0")
-    GNANI_EVON_MODEL: str = os.getenv("GNANI_EVON_MODEL", "gnani-evon-v3.3-30B-A3B")
-    GNANI_TIMBRE_MODEL: str = os.getenv("GNANI_TIMBRE_MODEL", "timbre-v3.0")
 
-    # Reasoning LLM (NVIDIA NIM / Groq) — symptom extraction and translation
-    # NVIDIA NIM requires deploying a model (may incur cost).
-    # Groq has a free tier — sign up at https://groq.com for a free API key.
-    DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
-    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
-    DEEPSEEK_BASE_URL: str = os.getenv("DEEPSEEK_BASE_URL", "https://integrate.api.nvidia.com/v1")
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
-    GROQ_BASE_URL: str = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
-    
-    # Provider Mode: "live" or "demo"
-    AI_PROVIDER_MODE: str = os.getenv("AI_PROVIDER_MODE", "demo" if not os.getenv("GNANI_API_KEY") else "live")
-    
+    # ── AI pipeline: Evon v3.3 (analysis) + Bhashini (ASR / translation) ──
+    # Evon — OpenAI-compatible chat completions. The endpoint is fully
+    # configurable (the deployment in front of the model may change); never
+    # commit a temporary tunnel URL as a production value.
+    EVON_API_URL: str = os.getenv("EVON_API_URL", "")
+    EVON_API_KEY: str = os.getenv("EVON_API_KEY", "")
+    EVON_MODEL: str = os.getenv("EVON_MODEL", "evon-v3.3")
+    # Evon runs on modest hardware (llamacpp); allow long completions.
+    EVON_TIMEOUT: float = float(os.getenv("EVON_TIMEOUT", "300"))
+
+    # Bhashini — speech recognition + translation + TTS.
+    # Compute URLs are account-specific; the official portal returns them
+    # during pipeline discovery. Optional pipeline/service ids are attached
+    # to requests when your account requires them.
+    BHASHINI_API_KEY: str = os.getenv("BHASHINI_API_KEY", "")
+    BHASHINI_ASR_URL: str = os.getenv("BHASHINI_ASR_URL", "")
+    BHASHINI_TRANSLATION_URL: str = os.getenv("BHASHINI_TRANSLATION_URL", "")
+    BHASHINI_TTS_URL: str = os.getenv("BHASHINI_TTS_URL", "")
+    BHASHINI_ASR_PIPELINE_ID: str = os.getenv("BHASHINI_ASR_PIPELINE_ID", "")
+    BHASHINI_TRANSLATION_PIPELINE_ID: str = os.getenv("BHASHINI_TRANSLATION_PIPELINE_ID", "")
+    BHASHINI_TTS_PIPELINE_ID: str = os.getenv("BHASHINI_TTS_PIPELINE_ID", "")
+
+    # Provider Mode: "live" when third-party credentials exist, "demo" otherwise.
+    # Demo adapters are explicitly labelled DEMO in every response.
+    AI_PROVIDER_MODE: str = os.getenv(
+        "AI_PROVIDER_MODE",
+        "live" if (os.getenv("BHASHINI_API_KEY") and os.getenv("EVON_API_KEY")) else "demo"
+    )
+
     # File Storage
     AUDIO_STORAGE_MODE: str = os.getenv("AUDIO_STORAGE_MODE", "local")
     AUDIO_STORAGE_PATH: str = os.getenv("AUDIO_STORAGE_PATH", "./uploads")
@@ -60,4 +70,3 @@ class Settings(BaseModel):
     TRIAGE_RULESET_VERSION: str = "demo-v1.0"
 
 settings = Settings()
-

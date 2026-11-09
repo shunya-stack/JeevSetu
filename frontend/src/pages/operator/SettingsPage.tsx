@@ -30,56 +30,72 @@ export const SettingsPage: React.FC = () => {
       <div className="bg-white rounded-3xl p-6 border border-[#E2E7DF] shadow-xs space-y-4">
         <h2 className="text-base font-bold text-[#17251D] flex items-center gap-2">
           <Cpu className="w-5 h-5 text-[#174B35]" />
-          Gnani AI Provider Stack
+          AI Provider Stack (Bhashini + Evon)
         </h2>
 
         <div className="space-y-3 text-xs sm:text-sm">
-          
+
           <div className="p-3.5 rounded-2xl bg-[#F7F7F0] border border-[#E2E7DF] flex items-center justify-between">
             <div>
-              <span className="font-bold text-[#17251D] block">Gnani Prisma (Speech-to-Text)</span>
+              <span className="font-bold text-[#17251D] block">Bhashini (Speech-to-Text)</span>
               <span className="text-xs text-[#647168]">
-                Model: {status?.gnani?.prisma_model || 'prisma-v3.0'} • Endpoint: /stt/v3
+                Odia + Hindi + English • auto-detect where supported
               </span>
             </div>
             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-              status?.gnani?.prisma_status === 'live'
+              status?.bhashini?.asr_status === 'live'
                 ? 'bg-emerald-100 text-emerald-800'
                 : 'bg-amber-100 text-amber-800'
             }`}>
-              {status?.gnani?.prisma_status === 'live' ? 'LIVE CONNECTED' : 'DEMO ADAPTER'}
+              {status?.bhashini?.asr_status === 'live' ? 'LIVE CONNECTED' : 'NOT CONFIGURED'}
             </span>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-[#F7F7F0] border border-[#E2E7DF] flex items-center justify-between">
             <div>
-              <span className="font-bold text-[#17251D] block">Gnani Evon (Reasoning & Extraction)</span>
+              <span className="font-bold text-[#17251D] block">Bhashini (Translation)</span>
               <span className="text-xs text-[#647168]">
-                Model: {status?.gnani?.evon_model || 'gnani-evon-v3.3-30B-A3B'}
+                Transcript & AI content between farmer language and English
               </span>
             </div>
             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-              status?.gnani?.evon_status === 'live'
+              status?.bhashini?.translation_status === 'live'
                 ? 'bg-emerald-100 text-emerald-800'
                 : 'bg-amber-100 text-amber-800'
             }`}>
-              {status?.gnani?.evon_status === 'live' ? 'LIVE CONNECTED' : 'DEMO ADAPTER'}
+              {status?.bhashini?.translation_status === 'live' ? 'LIVE CONNECTED' : 'NOT CONFIGURED'}
             </span>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-[#F7F7F0] border border-[#E2E7DF] flex items-center justify-between">
             <div>
-              <span className="font-bold text-[#17251D] block">Gnani Timbre (Text-to-Speech)</span>
+              <span className="font-bold text-[#17251D] block">Evon v3.3 (Reasoning & Extraction)</span>
               <span className="text-xs text-[#647168]">
-                Model: {status?.gnani?.timbre_model || 'timbre-v3.0'}
+                Model: {status?.evon?.model || 'evon-v3.3'}
               </span>
             </div>
             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-              status?.gnani?.timbre_status === 'live'
+              status?.evon?.status === 'live'
                 ? 'bg-emerald-100 text-emerald-800'
                 : 'bg-amber-100 text-amber-800'
             }`}>
-              {status?.gnani?.timbre_status === 'live' ? 'LIVE CONNECTED' : 'DEMO ADAPTER'}
+              {status?.evon?.status === 'live' ? 'LIVE CONNECTED' : 'NOT CONFIGURED'}
+            </span>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-[#F7F7F0] border border-[#E2E7DF] flex items-center justify-between">
+            <div>
+              <span className="font-bold text-[#17251D] block">Bhashini (Text-to-Speech)</span>
+              <span className="text-xs text-[#647168]">
+                Farmer-confirmation voice readback
+              </span>
+            </div>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+              status?.bhashini?.tts_status === 'live'
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-amber-100 text-amber-800'
+            }`}>
+              {status?.bhashini?.tts_status === 'live' ? 'LIVE CONNECTED' : 'NOT CONFIGURED'}
             </span>
           </div>
 

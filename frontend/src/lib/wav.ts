@@ -1,5 +1,5 @@
 // Converts any browser-decodable audio (WebM recording, MP3/OGG/M4A upload) into
-// a 16-bit PCM WAV blob, because the Gnani Vachana STT API only accepts
+// a 16-bit PCM WAV blob, because the Bhashini ASR service accepts
 // flac/m4a/ogg/mp3/aac/wav containers and rejects WebM recordings outright.
 
 export interface WavConversion {
