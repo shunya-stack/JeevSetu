@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { createCaseAPI } from '../../lib/api';
-import { ArrowLeft, Check, ShieldAlert, AlertCircle, MapPin, User, Loader2 } from 'lucide-react';
+import { createCaseAPI, API_ORIGIN } from '../../lib/api';
+import { ArrowLeft, Check, ShieldAlert, AlertCircle, MapPin, User, Loader2, Speaker } from 'lucide-react';
 
 export const ReportConfirmPage: React.FC = () => {
   const { t, draft, resetDraft, language } = useLanguage();
@@ -150,6 +150,32 @@ export const ReportConfirmPage: React.FC = () => {
             )}
 
           </div>
+
+          {/* Recorded Audio Playback */}
+          {draft.audio_object_key && (
+            <div className="space-y-2 border-t border-[#E2E7DF] pt-4">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-[#17251D] flex items-center gap-1.5">
+                  <Speaker className="w-3.5 h-3.5 text-[#174B35]" />
+                  {t('review_voice_message_label')}
+                </label>
+                <span className="text-[11px] font-semibold text-[#174B35] bg-[#E2EEE5] px-2 py-0.5 rounded-md">
+                  {t('review_audio_language_label')}
+                </span>
+              </div>
+              <div className="bg-[#F7F7F0] rounded-2xl p-3.5 border border-[#E2E7DF]">
+                <audio
+                  src={`${API_ORIGIN}/api/audio/${draft.audio_object_key}`}
+                  controls
+                  className="w-full h-10"
+                  preload="auto"
+                />
+                <p className="text-[10px] text-[#647168] italic mt-1">
+                  {t('review_play_note')}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Submit Actions */}
           <div className="pt-2 space-y-3">
