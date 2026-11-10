@@ -139,5 +139,4 @@ JeevSetu supports three languages consistently across the entire application:
 7. **Location & Contact**: Farmer provides district, village, landmark, GPS, name, phone, consent (`/report/location`)
 8. **Confirm Case**: All information displayed in farmer's language with audio playback; farmer confirms (`/report/confirm`)
 9. **Success**: Public reference ID generated, status tracking, translated next steps (`/case/:id/success`)
-10. **Operator Review**: Case appears in veterinary console for triage and assignment (`/operator/cases`)
 ---
