@@ -20,6 +20,15 @@ JeevSetu empowers rural farmers in Odisha and across India to report animal heal
 
 ---
 
+## 🚀 Live Services & Architecture
+
+| Component | Port | Technology | Purpose |
+|---|---|---|---|
+| **Frontend** | `http://127.0.0.1:5173` | React 19, TypeScript, Vite 8, Tailwind CSS, Leaflet | Mobile-first farmer flow & operator console |
+| **Backend API** | `http://127.0.0.1:8000` | FastAPI, Python 3.12, SQLAlchemy 2.0, SQLite | Triage engine, Bhashini + Evon adapters, REST APIs |
+| **API Docs** | `http://127.0.0.1:8000/docs` | Swagger / OpenAPI | Interactive API documentation |
+
+---
 
 ## 🗺️ Key Screens & User Journeys
 
@@ -38,9 +47,60 @@ Recording → AI Processing → Location & Contact → Confirm Case → Success
 - **Case Confirmation (`/report/confirm`)**: All details in the farmer's selected language including recorded audio playback, urgency badge, priority level, and translated symptoms. Submit to generate a public reference.
 - **Success (`/case/:id/success`)**: Public reference ID, case status, translated next steps as numbered instructions, "Report Another Concern" and "Return Home" actions.
 
+### 2. Veterinary Operations Console
+
+- **Operator Access (`/operator/login`)**: Direct access to review cases.
+- **Dashboard Overview (`/operator`)**: Live KPI metrics from database (`New`, `Urgent`, `Under Review`, `Resolved`), incoming queue, and case incident map.
+- **Incoming Case Queue (`/operator/cases`)**: Filterable by status, urgency, animal species, district, and keyword search.
+- **Case Detail (`/operator/cases/:id`)**: Split-screen case review with original audio player, transcript, red-flag triggers, audit history, and vet assignment.
+- **Veterinary Directory (`/operator/vets`)**: Interactive Leaflet map and directory of Block Veterinary Dispensaries and Mobile Units across Odisha.
+- **Intake Reports (`/operator/reports`)**: Aggregated analytics strictly derived from stored cases.
+- **System Settings (`/operator/settings`)**: Bhashini + Evon connection status and safety engine audit info.
+
 ---
 
+## 🔐 Environment Variables (backend `/backend/.env`)
 
+See `.env.example` for the full annotated list. All third-party credentials are server-side only — never in the frontend.
+
+```env
+# Frontend
+VITE_API_BASE_URL=http://localhost:8000
+
+# Backend
+APP_ENV=development
+DATABASE_URL=sqlite+aiosqlite:///./jeevsetu.db
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+FRONTEND_URL=http://localhost:5173
+
+# ── AI pipeline (v2): Evon v3.3 analysis + Bhashini ASR/translation/TTS ──
+# Evon — OpenAI-compatible chat completions (backend-only, Bearer auth)
+EVON_API_URL=          # e.g. https://<your-host>/v1/chat/completions (configurable endpoint)
+EVON_API_KEY=
+EVON_MODEL=evon-v3.3
+EVON_TIMEOUT=300       # Evon inference is slow; keep a generous timeout
+
+# Bhashini — speech recognition, translation and TTS (backend-only)
+# Compute URLs are account/pipeline-specific — copy them from your Bhashini portal
+BHASHINI_API_KEY=
+BHASHINI_ASR_URL=
+BHASHINI_TRANSLATION_URL=
+BHASHINI_TTS_URL=                # optional
+BHASHINI_ASR_PIPELINE_ID=        # optional, only if your account requires it
+BHASHINI_TRANSLATION_PIPELINE_ID=
+BHASHINI_TTS_PIPELINE_ID=
+
+# Provider mode: "live" when credentials exist, "demo" otherwise
+# Demo adapters are clearly labelled DEMO in every response — no hardcoded sample data
+AI_PROVIDER_MODE=demo
+
+# Storage
+AUDIO_STORAGE_MODE=local
+AUDIO_STORAGE_PATH=./uploads
+SUPABASE_URL=
+SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_BUCKET=jeevsetu-audio
 
 # Safety
 TRIAGE_RULESET_VERSION=demo-v1
@@ -122,6 +182,30 @@ cd frontend
 npm install
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
+
+Both development servers watch for source changes. Vite updates the frontend in the browser, and Uvicorn automatically restarts the backend when Python files change.
+
+Connect desktop or mobile devices to the same Wi-Fi network and open the Vite network URL, for example `http://10.190.161.130:5173`.
+
+Note: mobile browsers generally block microphone access on HTTP LAN addresses. Mobile microphone recording requires HTTPS or a trusted local development certificate; audio upload and typed description remain available over HTTP.
+
+---
+
+## 🧪 Automated Testing
+
+Run the full end-to-end API test suite:
+```bash
+cd backend
+venv\Scripts\python.exe tests\test_flow.py
+```
+
+Test suite covers:
+- System health and integration statuses
+- Deterministic red-flag emergency evaluation
+- Case creation and reference generation
+- Status transitions and audit log history
+- Veterinary facility queries and data consistency
+
 ---
 
 ## 🌐 Multilingual Support
@@ -133,6 +217,9 @@ JeevSetu supports three languages consistently across the entire application:
 | Odia | `or` / `odia` | ✅ Yes |
 | Hindi | `hi` / `hindi` | No |
 | English | `en` / `english` | No |
+
+Language state is stored in `localStorage` (`jeevsetu_lang`) and persisted across navigation and page refreshes. Changing the language in the header or bottom navigation updates every page simultaneously using a single application-wide source.
+
 ---
 
 ## 🗂️ Project Structure
@@ -142,6 +229,7 @@ JeevSetu/
 ├── README.md
 ├── .env                          # Backend environment variables (gitignored)
 ├── .env.example                  # Backend environment template
+├── ARCHITECTURE.md
 ├── backend/
 │   ├── app/
 │   │   ├── main.py               # FastAPI app entry
@@ -223,6 +311,30 @@ JeevSetu/
 7. **Location & Contact**: Farmer provides district, village, landmark, GPS, name, phone, consent (`/report/location`)
 8. **Confirm Case**: All information displayed in farmer's language with audio playback; farmer confirms (`/report/confirm`)
 9. **Success**: Public reference ID generated, status tracking, translated next steps (`/case/:id/success`)
+10. **Operator Review**: Case appears in veterinary console for triage and assignment (`/operator/cases`)
+
+---
+
+## 📋 What's Been Implemented
+
+- ✅ Complete Groq/Gnani/old-NVIDIA → Evon v3.3 + Bhashini migration
+- ✅ SSE streaming Evon client with reasoning-wrapper stripping
+- ✅ ULCA Bhashini ASR/NMT/TTS with LRU cache
+- ✅ Provider factory (live vs demo modes)
+- ✅ Deterministic triage safety engine
+- ✅ Multilingual UI: Odia/Hindi/English with centralized dictionaries
+- ✅ 17 Odisha district name translations (3 languages each)
+- ✅ Structured localized content (summary, symptoms, steps, precautions, causes, follow-ups)
+- ✅ Fixed safety text never machine-translated
+- ✅ Translation cache with retry on failure
+- ✅ Language switching without re-running ASR/Evon
+- ✅ Audio playback on Confirm Case page
+- ✅ Removed Safety Evaluation intermediate page (direct flow: Processing → Location → Confirm → Success)
+- ✅ All demo/predefined data removed (real user feed only)
+- ✅ No mixed-language interface (except proper nouns, reference numbers, phone numbers, units)
+- ✅ Production build passes (`npm run build`)
+
+---
 
 ## 📄 License
 
