@@ -11,6 +11,44 @@ JeevSetu empowers rural farmers in Odisha and across India to report animal heal
 
 ---
 
+## 💡 Solution Pitch
+
+> **JeevSetu — Care that reaches every life.**
+
+### The Problem
+
+Livestock is a vital source of livelihood for rural families across Odisha. However, accessing timely veterinary assistance remains difficult due to language barriers, limited digital literacy, distant veterinary facilities, and delays in professional care. Existing digital solutions often require smartphones, internet connectivity, and English literacy, leaving many farmers underserved.
+
+### The Solution
+
+1. **JeevSetu is an Odia-first, voice-powered livestock health and veterinary referral platform** that allows farmers to report animal health concerns simply by speaking in Odia, Hindi, or English.
+2. **Using Bhashini for speech recognition and translation, Evon v3.3 for structured symptom analysis, and deterministic veterinarian-approved triage rules**, JeevSetu identifies potential risks and classifies cases as Urgent, Review, or Information Needed.
+3. **Farmers receive localized summaries, possible causes, precautions, and clear action steps in their preferred language.** With location and contact details, cases are submitted to a veterinary operations console for professional follow-up.
+
+> **Safety first:** JeevSetu does not provide confirmed diagnoses or prescribe medicines or dosages. It supports initial assessment and connects farmers with qualified veterinarians.
+
+### Why JeevSetu Matters
+
+- **Odia-first:** Built around the language farmers naturally speak.
+- **Voice-first:** Minimal typing and no complicated forms.
+- **Clinically Safe:** AI supports triage, not diagnosis or prescription.
+- **Locally Connected:** Facilitates referrals to nearby veterinary services.
+- **Inclusive Vision:** A future calling service could extend access to keypad-phone users.
+
+### Our Vision
+
+To make veterinary assistance accessible to every livestock farmer in Odisha, regardless of language, literacy, internet connectivity, or smartphone ownership.
+
+> **Personal Inspiration:** JeevSetu is also a memorial to a stray cat we couldn't save. We lacked the knowledge to help, veterinary services were far away, and assistance could not arrive in time. This loss inspired me to build a solution so that no farmer has to face the same helplessness when an animal needs urgent care.
+
+### Future Idea: JeevSetu Voice Helpline
+
+Beyond the current smartphone platform, we envision an AI-powered calling agent for farmers using basic keypad phones. By dialing a dedicated number, farmers could describe their animal's condition through a natural voice conversation. The proposed system would identify urgency, provide safe veterinarian-approved initial guidance, and route cases to nearby veterinary professionals for follow-up.
+
+> **This is a proposed future extension, not part of the current implementation.**
+
+---
+
 ## 🛡️ Clinical Safety Boundary
 
 - **No AI Clinical Prescriptions:** JeevSetu never generates medicine names, chemical compounds, dosage calculations, or injection advice.
